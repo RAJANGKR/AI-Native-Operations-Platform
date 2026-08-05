@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_key: str = ""
 
+    def validate_supabase_config(self) -> None:
+        if self.supabase_url and not self.supabase_key:
+            raise ValueError("SUPABASE_KEY is missing while SUPABASE_URL is set")
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,
@@ -21,3 +25,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+settings.validate_supabase_config()
