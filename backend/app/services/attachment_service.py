@@ -35,6 +35,18 @@ class AttachmentService(BaseService):
         """Return an attachment by id."""
         return await self.attachment_repository.get_by_id(attachment_id)
 
+    async def update_attachment(
+        self, attachment_id: uuid.UUID, **data: Any
+    ) -> Attachment:
+        """Update an existing attachment."""
+        attachment = await self.attachment_repository.get_by_id(attachment_id)
+        if attachment is None:
+            raise ValueError("Attachment not found")
+
+        return await self._run_in_transaction(
+            lambda: self.attachment_repository.update(attachment, **data)
+        )
+
     async def delete_attachment(self, attachment_id: uuid.UUID) -> None:
         """Delete an attachment by id."""
         attachment = await self.attachment_repository.get_by_id(attachment_id)
