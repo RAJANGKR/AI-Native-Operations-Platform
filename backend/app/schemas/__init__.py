@@ -5,6 +5,7 @@ from app.schemas.attachment import (
     AttachmentUpdate,
 )
 from app.schemas.budget import BudgetCreate, BudgetResponse, BudgetUpdate
+from app.schemas.chapter import ChapterCreate, ChapterResponse, ChapterUpdate
 from app.schemas.common import (
     ErrorResponse,
     HealthResponse,
@@ -13,6 +14,7 @@ from app.schemas.common import (
     ValidationErrorDetail,
     ValidationErrorResponse,
 )
+from app.schemas.event import EventCreate, EventResponse, EventUpdate
 from app.schemas.expense import (
     ExpenseCreate,
     ExpenseResponse,

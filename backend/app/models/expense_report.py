@@ -10,7 +10,9 @@ from app.db.base_model import BaseModel
 from app.enums.expense_report import ExpenseReportStatus
 
 if TYPE_CHECKING:
+    from app.models.chapter import Chapter
     from app.models.expense import Expense
+    from app.models.event import Event
     from app.models.member import Member
     from app.models.organization import Organization
 
@@ -30,6 +32,20 @@ class ExpenseReport(BaseModel):
         ForeignKey("members.id"),
         index=True,
         nullable=False,
+    )
+
+    chapter_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("chapters.id"),
+        index=True,
+        nullable=False,
+    )
+
+    event_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("events.id"),
+        index=True,
+        nullable=True,
     )
 
     title: Mapped[str] = mapped_column(
@@ -63,6 +79,14 @@ class ExpenseReport(BaseModel):
     )
 
     member: Mapped["Member"] = relationship(
+        back_populates="expense_reports",
+    )
+
+    chapter: Mapped["Chapter"] = relationship(
+        back_populates="expense_reports",
+    )
+
+    event: Mapped["Event | None"] = relationship(
         back_populates="expense_reports",
     )
 

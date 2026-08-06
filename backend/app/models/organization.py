@@ -7,8 +7,9 @@ from app.db.base_model import BaseModel
 
 if TYPE_CHECKING:
     from app.models.budget import Budget
-    from app.models.expense_report import ExpenseReport
+    from app.models.chapter import Chapter
     from app.models.member import Member
+    from app.models.expense import Expense
 
 
 class Organization(BaseModel):
@@ -40,7 +41,12 @@ class Organization(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    expense_reports: Mapped[list["ExpenseReport"]] = relationship(
+    chapters: Mapped[list["Chapter"]] = relationship(
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
+
+    expenses: Mapped[list["Expense"]] = relationship(
         back_populates="organization",
         cascade="all, delete-orphan",
     )

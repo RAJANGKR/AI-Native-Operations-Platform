@@ -13,6 +13,11 @@ class ExpenseReportCreate(APIModel):
 
     organization_id: UUID = Field(description="Organization identifier")
     member_id: UUID = Field(description="Member identifier")
+    chapter_id: UUID = Field(description="Chapter identifier")
+    event_id: UUID | None = Field(
+        default=None,
+        description="Optional event identifier",
+    )
     title: NameStr
     description: DescriptionStr | None = Field(
         default=None,
@@ -41,6 +46,11 @@ class ExpenseReportUpdate(APIModel):
         description="Organization identifier",
     )
     member_id: UUID | None = Field(default=None, description="Member identifier")
+    chapter_id: UUID | None = Field(default=None, description="Chapter identifier")
+    event_id: UUID | None = Field(
+        default=None,
+        description="Optional event identifier",
+    )
     title: NameStr | None = None
     description: DescriptionStr | None = Field(
         default=None,
@@ -65,6 +75,11 @@ class ExpenseReportResponse(TimestampedResponse):
 
     organization_id: UUID = Field(description="Organization identifier")
     member_id: UUID = Field(description="Member identifier")
+    chapter_id: UUID = Field(description="Chapter identifier")
+    event_id: UUID | None = Field(
+        default=None,
+        description="Optional event identifier",
+    )
     title: str = Field(description="Expense report title")
     description: str | None = Field(
         default=None,

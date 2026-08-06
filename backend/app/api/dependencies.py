@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import SessionLocal
 from app.services.attachment_service import AttachmentService
 from app.services.budget_service import BudgetService
+from app.services.chapter_service import ChapterService
+from app.services.event_service import EventService
 from app.services.expense_report_service import ExpenseReportService
 from app.services.expense_service import ExpenseService
 from app.services.member_service import MemberService
@@ -38,6 +40,20 @@ def get_budget_service(
 ) -> BudgetService:
     """Create a budget service."""
     return BudgetService(session)
+
+
+def get_chapter_service(
+    session: AsyncSession = Depends(get_db),
+) -> ChapterService:
+    """Create a chapter service."""
+    return ChapterService(session)
+
+
+def get_event_service(
+    session: AsyncSession = Depends(get_db),
+) -> EventService:
+    """Create an event service."""
+    return EventService(session)
 
 
 def get_expense_report_service(

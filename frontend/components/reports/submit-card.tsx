@@ -1,0 +1,55 @@
+"use client";
+
+import * as React from "react";
+import { Send, Save, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ReportDetailData } from "@/constants/mock-reports-data";
+
+interface SubmitCardProps {
+  report: ReportDetailData;
+}
+
+export function SubmitCard({ report }: SubmitCardProps) {
+  const [submitted, setSubmitted] = React.useState(report.status === "submitted" || report.status === "approved");
+
+  return (
+    <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-card">
+      <CardContent className="p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+              <span className="text-xs font-semibold text-slate-700">Submission Workflow Status</span>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 sm:text-xl">
+              {submitted ? "Report Submitted for Treasurer Review" : "Ready for Treasurer Submission"}
+            </h3>
+            <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
+              {submitted
+                ? "This report is currently queued for multi-level Treasurer audit and ledger reconciliation."
+                : "Verify that all receipt vouchers match your line items before submitting to your chapter Treasurer."}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            {!submitted && (
+              <Button variant="outline" size="sm">
+                <Save className="h-4 w-4 mr-1.5" />
+                Save Draft
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={() => setSubmitted(!submitted)}
+              className={submitted ? "bg-emerald-700 hover:bg-emerald-800" : ""}
+            >
+              <Send className="h-4 w-4 mr-1.5" />
+              {submitted ? "Resubmit Report" : "Submit Report"}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
