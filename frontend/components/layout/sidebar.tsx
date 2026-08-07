@@ -11,6 +11,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { NAVIGATION_ITEMS } from "@/constants/navigation";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -21,6 +22,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggleCollapse, className }: SidebarProps) {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   return (
     <aside
@@ -112,26 +114,28 @@ export function Sidebar({ collapsed, onToggleCollapse, className }: SidebarProps
       {/* Bottom User Card */}
       <div className="p-3 border-t border-slate-100 bg-slate-50/50">
         <div
+          onClick={logout}
           className={cn(
-            "flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-slate-100/80 cursor-pointer",
+            "flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-slate-100/80 cursor-pointer text-slate-700 hover:text-slate-900",
             collapsed && "justify-center p-1.5"
           )}
+          title="Sign Out"
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 font-semibold text-xs text-white">
-            JD
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 font-semibold text-xs text-emerald-400">
+            {user ? user.full_name.substring(0, 2).toUpperCase() : "U"}
           </div>
           {!collapsed && (
             <div className="flex-1 overflow-hidden">
               <p className="truncate text-xs font-semibold text-slate-900">
-                Jordan Davies
+                {user?.full_name || "User"}
               </p>
-              <p className="truncate text-[11px] text-slate-500">
-                Finance Director
+              <p className="truncate text-[11px] font-mono text-slate-500 uppercase">
+                {user?.role || "MEMBER"}
               </p>
             </div>
           )}
           {!collapsed && (
-            <LogOut className="h-4 w-4 shrink-0 text-slate-400 hover:text-slate-600 transition-colors" />
+            <LogOut className="h-4 w-4 shrink-0 text-slate-400 hover:text-rose-600 transition-colors" />
           )}
         </div>
       </div>

@@ -19,6 +19,7 @@ export const metadata: Metadata = {
   description: "Next-generation financial operations and expense management platform.",
 };
 
+import { AuthProvider } from "@/context/auth-context";
 import { ToastContainer } from "@/components/ui/toast";
 
 export default function RootLayout({
@@ -32,8 +33,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} font-sans bg-slate-50/50 text-slate-900 antialiased min-h-screen`}
       >
         <QueryProvider>
-          <AppShell>{children}</AppShell>
-          <ToastContainer />
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+            <ToastContainer />
+          </AuthProvider>
         </QueryProvider>
       </body>
     </html>

@@ -11,9 +11,11 @@ import { EventGrid } from "@/components/events/event-grid";
 import { EmptyEvents } from "@/components/events/empty-events";
 import { CardSkeleton } from "@/components/ui/loading-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function EventsListPage() {
   const { data: rawEvents, isLoading, isError, error, refetch } = useEvents();
+  const { isTreasurerOrAdmin } = useAuth();
 
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedStatus, setSelectedStatus] = React.useState("all");
@@ -55,10 +57,12 @@ export default function EventsListPage() {
         description="Track budgets, reports and expenses across all events."
         breadcrumbs={[{ label: "Overview", href: "/" }, { label: "Events" }]}
         actions={
-          <Button size="sm" className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            New Event
-          </Button>
+          isTreasurerOrAdmin ? (
+            <Button size="sm" className="gap-1.5">
+              <Plus className="h-4 w-4" />
+              New Event
+            </Button>
+          ) : undefined
         }
       />
 

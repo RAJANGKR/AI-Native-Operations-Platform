@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Bell, Menu, User, ChevronDown } from "lucide-react";
 import { NAVIGATION_ITEMS } from "@/constants/navigation";
 import { SearchInput } from "@/components/ui/search-input";
+import { ProfileDropdown } from "@/components/shared/profile-dropdown";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -65,20 +66,9 @@ export function Header({ onOpenMobileNav, className }: HeaderProps) {
           <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white" />
         </button>
 
-        {/* User Profile Dropdown Trigger Placeholder */}
+        {/* User Profile Dropdown Trigger */}
         <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-lg p-1 text-left text-xs hover:bg-slate-100 transition-colors"
-          >
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">
-              JD
-            </div>
-            <span className="hidden md:inline-block font-medium text-slate-800">
-              Jordan Davies
-            </span>
-            <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-          </button>
+          <ProfileDropdown />
         </div>
       </div>
     </header>

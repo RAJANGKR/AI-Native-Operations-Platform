@@ -7,11 +7,15 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EventDetailData } from "@/constants/mock-events-data";
 
+import { useAuth } from "@/hooks/use-auth";
+
 interface EventHeaderProps {
   event: EventDetailData;
 }
 
 export function EventHeader({ event }: EventHeaderProps) {
+  const { isTreasurerOrAdmin, isAdmin } = useAuth();
+
   const getStatusVariant = (status: EventDetailData["status"]) => {
     switch (status) {
       case "running":
@@ -65,14 +69,18 @@ export function EventHeader({ event }: EventHeaderProps) {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2.5 shrink-0">
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-            <Edit3 className="h-3.5 w-3.5" />
-            Edit Event
-          </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-            <Archive className="h-3.5 w-3.5" />
-            Archive
-          </Button>
+          {isTreasurerOrAdmin && (
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+              <Edit3 className="h-3.5 w-3.5" />
+              Edit Event
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+              <Archive className="h-3.5 w-3.5" />
+              Archive
+            </Button>
+          )}
           <Button size="sm" className="gap-1.5 text-xs">
             <Download className="h-3.5 w-3.5" />
             Export Statement
