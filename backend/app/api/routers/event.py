@@ -10,6 +10,23 @@ from app.services.event_service import EventService
 router = APIRouter(prefix="/events", tags=["Events"])
 
 
+@router.get(
+    "/",
+    response_model=list[EventResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List all events",
+    description="Return all events.",
+)
+async def get_events(
+    service: EventService = Depends(get_event_service),
+) -> list[EventResponse]:
+    try:
+        events = await service.get_all_events()
+        return [EventResponse.model_validate(event) for event in events]
+    except Exception as exc:
+        translate_service_exception(exc)
+
+
 @router.post(
     "/",
     response_model=EventResponse,

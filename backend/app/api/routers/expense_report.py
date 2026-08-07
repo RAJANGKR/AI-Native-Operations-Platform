@@ -17,6 +17,23 @@ from app.services.expense_report_service import ExpenseReportService
 router = APIRouter(prefix="/expense-reports", tags=["Expense Reports"])
 
 
+@router.get(
+    "/",
+    response_model=list[ExpenseReportResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List all expense reports",
+    description="Return all expense reports.",
+)
+async def get_reports(
+    service: ExpenseReportService = Depends(get_expense_report_service),
+) -> list[ExpenseReportResponse]:
+    try:
+        reports = await service.get_all_reports()
+        return [ExpenseReportResponse.model_validate(r) for r in reports]
+    except Exception as exc:
+        translate_service_exception(exc)
+
+
 @router.post(
     "/",
     response_model=ExpenseReportResponse,

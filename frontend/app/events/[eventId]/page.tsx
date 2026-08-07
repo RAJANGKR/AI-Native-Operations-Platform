@@ -1,6 +1,8 @@
+"use client";
+
 import * as React from "react";
-import { notFound } from "next/navigation";
-import { getEventDetails } from "@/constants/mock-events-data";
+import { useEvent } from "@/hooks/use-events";
+import { formatEventDetailData } from "@/types/event";
 import { EventHeader } from "@/components/events/event-header";
 import { EventSummaryKPIs } from "@/components/events/event-summary-kpis";
 import { BudgetOverview } from "@/components/events/budget-overview";
@@ -9,6 +11,8 @@ import { EventExpensesTable } from "@/components/events/event-expenses-table";
 import { EventTimeline } from "@/components/events/event-timeline";
 import { AttachmentSummary } from "@/components/events/attachment-summary";
 import { AIInsightsCard } from "@/components/dashboard/ai-insights-card";
+import { CardSkeleton, TableSkeleton } from "@/components/ui/loading-skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 
 interface EventDetailPageProps {
   params: Promise<{
@@ -16,12 +20,37 @@ interface EventDetailPageProps {
   }>;
 }
 
-export default async function EventDetailPage({ params }: EventDetailPageProps) {
-  const { eventId } = await params;
-  const event = getEventDetails(eventId);
+export default function EventDetailPage({ params }: EventDetailPageProps) {
+  const { eventId } = React.use(params);
+  const { data: rawEvent, isLoading, isError, error, refetch } = useEvent(eventId);
 
-  if (!event) {
-    notFound();
+  const event = React.useMemo(() => {
+    if (!rawEvent) return null;
+    return formatEventDetailData(rawEvent);
+  }, [rawEvent]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8 pb-10">
+        <CardSkeleton />
+        <CardSkeleton />
+        <CardSkeleton />
+        <TableSkeleton rows={5} />
+        <TableSkeleton rows={5} />
+      </div>
+    );
+  }
+
+  if (isError || !event) {
+    return (
+      <div className="py-12">
+        <ErrorState
+          title="Could not load event details"
+          description={error?.message || "The requested event could not be found or loaded from the backend API."}
+          onRetry={() => refetch()}
+        />
+      </div>
+    );
   }
 
   return (

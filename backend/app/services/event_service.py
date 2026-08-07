@@ -61,5 +61,9 @@ class EventService(BaseService):
         """Return all events for a chapter."""
         return await self.event_repository.get_by_chapter(chapter_id)
 
+    async def get_all_events(self) -> list[Event]:
+        """Return all events."""
+        return await self.event_repository.get_all()
+
     async def _delete_event_instance(self, event: Event) -> None:
         await self.event_repository.delete(event)

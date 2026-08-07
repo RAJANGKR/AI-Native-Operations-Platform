@@ -1,6 +1,8 @@
+"use client";
+
 import * as React from "react";
-import { notFound } from "next/navigation";
-import { getReportDetails } from "@/constants/mock-reports-data";
+import { useExpenseReport } from "@/hooks/use-expense-reports";
+import { formatReportDetailData } from "@/types/expense-report";
 import { ReportHeader } from "@/components/reports/report-header";
 import { ReportSummary } from "@/components/reports/report-summary";
 import { ReportExpensesTable } from "@/components/reports/report-expenses-table";
@@ -8,6 +10,8 @@ import { AttachmentGrid } from "@/components/reports/attachment-grid";
 import { TotalsCard } from "@/components/reports/totals-card";
 import { ActivityTimeline } from "@/components/reports/activity-timeline";
 import { SubmitCard } from "@/components/reports/submit-card";
+import { CardSkeleton, TableSkeleton } from "@/components/ui/loading-skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 
 interface ReportDetailPageProps {
   params: Promise<{
@@ -15,12 +19,36 @@ interface ReportDetailPageProps {
   }>;
 }
 
-export default async function ReportDetailPage({ params }: ReportDetailPageProps) {
-  const { reportId } = await params;
-  const report = getReportDetails(reportId);
+export default function ReportDetailPage({ params }: ReportDetailPageProps) {
+  const { reportId } = React.use(params);
+  const { data: rawReport, isLoading, isError, error, refetch } = useExpenseReport(reportId);
 
-  if (!report) {
-    notFound();
+  const report = React.useMemo(() => {
+    if (!rawReport) return null;
+    return formatReportDetailData(rawReport);
+  }, [rawReport]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8 pb-10">
+        <CardSkeleton />
+        <CardSkeleton />
+        <TableSkeleton rows={4} />
+        <CardSkeleton />
+      </div>
+    );
+  }
+
+  if (isError || !report) {
+    return (
+      <div className="py-12">
+        <ErrorState
+          title="Could not load expense report"
+          description={error?.message || "The requested expense report could not be found or loaded from the backend server."}
+          onRetry={() => refetch()}
+        />
+      </div>
+    );
   }
 
   return (

@@ -2,20 +2,30 @@
 
 import * as React from "react";
 import { Plus } from "lucide-react";
+import { useEvents } from "@/hooks/use-events";
+import { formatEventItem } from "@/types/event";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { FilterBar } from "@/components/events/filter-bar";
 import { EventGrid } from "@/components/events/event-grid";
 import { EmptyEvents } from "@/components/events/empty-events";
-import { MOCK_EVENTS } from "@/constants/mock-events-data";
+import { CardSkeleton } from "@/components/ui/loading-skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 
 export default function EventsListPage() {
+  const { data: rawEvents, isLoading, isError, error, refetch } = useEvents();
+
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedStatus, setSelectedStatus] = React.useState("all");
   const [selectedChapter, setSelectedChapter] = React.useState("all");
 
+  const formattedEvents = React.useMemo(() => {
+    if (!rawEvents) return [];
+    return rawEvents.map(formatEventItem);
+  }, [rawEvents]);
+
   const filteredEvents = React.useMemo(() => {
-    return MOCK_EVENTS.filter((event) => {
+    return formattedEvents.filter((event) => {
       const matchesSearch =
         event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.chapter.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -29,7 +39,7 @@ export default function EventsListPage() {
 
       return matchesSearch && matchesStatus && matchesChapter;
     });
-  }, [searchQuery, selectedStatus, selectedChapter]);
+  }, [formattedEvents, searchQuery, selectedStatus, selectedChapter]);
 
   const handleResetFilters = () => {
     setSearchQuery("");
@@ -63,11 +73,31 @@ export default function EventsListPage() {
         onReset={handleResetFilters}
       />
 
+      {/* Error State */}
+      {isError && (
+        <ErrorState
+          title="Unable to load events"
+          description={error?.message || "Failed to fetch event data from server."}
+          onRetry={() => refetch()}
+        />
+      )}
+
+      {/* Loading Skeleton */}
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
+      )}
+
       {/* Event Grid or Empty State */}
-      {filteredEvents.length > 0 ? (
-        <EventGrid events={filteredEvents} />
-      ) : (
-        <EmptyEvents onResetFilters={handleResetFilters} />
+      {!isLoading && !isError && (
+        filteredEvents.length > 0 ? (
+          <EventGrid events={filteredEvents} />
+        ) : (
+          <EmptyEvents onResetFilters={handleResetFilters} />
+        )
       )}
     </div>
   );

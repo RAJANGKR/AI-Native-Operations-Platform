@@ -42,6 +42,10 @@ class ExpenseReportService(BaseService):
         """Return an expense report by id."""
         return await self.expense_report_repository.get_by_id(report_id)
 
+    async def get_all_reports(self) -> list[ExpenseReport]:
+        """Return all expense reports."""
+        return await self.expense_report_repository.get_all()
+
     async def update_report(self, report_id: uuid.UUID, **data: Any) -> ExpenseReport:
         """Update an existing expense report."""
         report = await self.expense_report_repository.get_by_id(report_id)
