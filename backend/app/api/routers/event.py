@@ -2,7 +2,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from app.api.dependencies import get_event_service, translate_service_exception
+from app.api.dependencies import (
+    get_event_service,
+    require_admin,
+    require_treasurer,
+    translate_service_exception,
+)
+from app.models.member import Member
 from app.schemas.common import MessageResponse
 from app.schemas.event import EventCreate, EventResponse, EventUpdate
 from app.services.event_service import EventService
@@ -37,6 +43,7 @@ async def get_events(
 async def create_event(
     payload: EventCreate,
     service: EventService = Depends(get_event_service),
+    current_user: Member = Depends(require_treasurer),
 ) -> EventResponse:
     try:
         event = await service.create_event(**payload.model_dump())
@@ -94,6 +101,7 @@ async def update_event(
     event_id: UUID,
     payload: EventUpdate,
     service: EventService = Depends(get_event_service),
+    current_user: Member = Depends(require_treasurer),
 ) -> EventResponse:
     try:
         event = await service.update_event(
@@ -115,6 +123,7 @@ async def update_event(
 async def delete_event(
     event_id: UUID,
     service: EventService = Depends(get_event_service),
+    current_user: Member = Depends(require_admin),
 ) -> MessageResponse:
     try:
         await service.delete_event(event_id)

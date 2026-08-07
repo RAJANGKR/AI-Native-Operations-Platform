@@ -24,3 +24,7 @@ class MemberRepository(BaseRepository[Member]):
         statement = select(Member).where(Member.organization_id == organization_id)
         result = await self.session.execute(statement)
         return list(result.scalars().all())
+
+    async def get_user_by_email(self, email: str) -> Member | None:
+        """Alias for get_by_email."""
+        return await self.get_by_email(email)

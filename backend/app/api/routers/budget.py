@@ -2,7 +2,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from app.api.dependencies import get_budget_service, translate_service_exception
+from app.api.dependencies import (
+    get_budget_service,
+    require_admin,
+    require_treasurer,
+    translate_service_exception,
+)
+from app.models.member import Member
 from app.schemas.budget import BudgetCreate, BudgetResponse, BudgetUpdate
 from app.schemas.common import MessageResponse
 from app.services.budget_service import BudgetService
@@ -20,6 +26,7 @@ router = APIRouter(prefix="/budgets", tags=["Budgets"])
 async def create_budget(
     payload: BudgetCreate,
     service: BudgetService = Depends(get_budget_service),
+    current_user: Member = Depends(require_treasurer),
 ) -> BudgetResponse:
     try:
         budget = await service.create_budget(**payload.model_dump())
@@ -59,6 +66,7 @@ async def update_budget(
     budget_id: UUID,
     payload: BudgetUpdate,
     service: BudgetService = Depends(get_budget_service),
+    current_user: Member = Depends(require_treasurer),
 ) -> BudgetResponse:
     try:
         budget = await service.update_budget(
@@ -80,6 +88,7 @@ async def update_budget(
 async def delete_budget(
     budget_id: UUID,
     service: BudgetService = Depends(get_budget_service),
+    current_user: Member = Depends(require_admin),
 ) -> MessageResponse:
     try:
         await service.delete_budget(budget_id)

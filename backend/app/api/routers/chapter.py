@@ -2,7 +2,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from app.api.dependencies import get_chapter_service, translate_service_exception
+from app.api.dependencies import (
+    get_chapter_service,
+    require_admin,
+    require_treasurer,
+    translate_service_exception,
+)
+from app.models.member import Member
 from app.schemas.chapter import ChapterCreate, ChapterResponse, ChapterUpdate
 from app.schemas.common import MessageResponse
 from app.services.chapter_service import ChapterService
@@ -37,6 +43,7 @@ async def get_chapters(
 async def create_chapter(
     payload: ChapterCreate,
     service: ChapterService = Depends(get_chapter_service),
+    current_user: Member = Depends(require_treasurer),
 ) -> ChapterResponse:
     try:
         chapter = await service.create_chapter(**payload.model_dump())
@@ -94,6 +101,7 @@ async def update_chapter(
     chapter_id: UUID,
     payload: ChapterUpdate,
     service: ChapterService = Depends(get_chapter_service),
+    current_user: Member = Depends(require_treasurer),
 ) -> ChapterResponse:
     try:
         chapter = await service.update_chapter(
@@ -115,6 +123,7 @@ async def update_chapter(
 async def delete_chapter(
     chapter_id: UUID,
     service: ChapterService = Depends(get_chapter_service),
+    current_user: Member = Depends(require_admin),
 ) -> MessageResponse:
     try:
         await service.delete_chapter(chapter_id)

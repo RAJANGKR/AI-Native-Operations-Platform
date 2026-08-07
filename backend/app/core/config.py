@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_key: str = ""
 
+    jwt_secret_key: str = "dev_secret_key_change_in_production_123456789"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 15
+
     def validate_supabase_config(self) -> None:
         if self.supabase_url and not self.supabase_key:
             raise ValueError("SUPABASE_KEY is missing while SUPABASE_URL is set")
