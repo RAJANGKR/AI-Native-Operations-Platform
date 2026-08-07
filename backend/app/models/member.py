@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_model import BaseModel
 from app.models.organization import Organization
-from app.models.expense import Expense
+from app.models.expense_report import ExpenseReport
 
 
 class Member(BaseModel):
@@ -45,7 +45,7 @@ class Member(BaseModel):
         back_populates="members",
     )
 
-    expenses: Mapped[list["Expense"]] = relationship(
+    expense_reports: Mapped[list["ExpenseReport"]] = relationship(
         back_populates="member",
         cascade="all, delete-orphan",
     )

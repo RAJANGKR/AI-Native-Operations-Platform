@@ -4,12 +4,15 @@ export interface AttachmentResponseItem {
   id: string;
   expense_id: string;
   type: string;
+  attachment_type?: string;
   storage_path: string;
   original_filename?: string;
   mime_type: string;
   size_bytes?: number;
+  sha256_hash?: string;
   uploaded_by?: string;
   ocr_status: string;
+  ocr_text?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -25,7 +28,8 @@ export interface DownloadUrlResponse {
  */
 export async function uploadAttachment(
   expenseId: string,
-  file: File
+  file: File,
+  onProgress?: (progressPercent: number) => void
 ): Promise<AttachmentResponseItem> {
   const formData = new FormData();
   formData.append("expense_id", expenseId);
@@ -37,6 +41,12 @@ export async function uploadAttachment(
     {
       headers: {
         "Content-Type": "multipart/form-data",
+      },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onProgress) {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(percent);
+        }
       },
     }
   );

@@ -49,6 +49,11 @@ class Attachment(BaseModel):
         nullable=False,
     )
 
+    sha256_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+
     uploaded_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,

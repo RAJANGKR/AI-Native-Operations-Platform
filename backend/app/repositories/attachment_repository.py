@@ -25,3 +25,20 @@ class AttachmentRepository(BaseRepository[Attachment]):
         statement = select(Attachment).where(Attachment.type == attachment_type)
         result = await self.session.execute(statement)
         return list(result.scalars().all())
+
+    async def create_attachment(self, **kwargs: dict) -> Attachment:
+        """Create a new attachment record."""
+        return await self.create(**kwargs)
+
+    async def get_attachment(self, attachment_id: uuid.UUID) -> Attachment | None:
+        """Retrieve attachment by ID."""
+        return await self.get_by_id(attachment_id)
+
+    async def delete_attachment(self, attachment: Attachment) -> None:
+        """Delete an attachment record."""
+        await self.delete(attachment)
+
+    async def list_attachments(self, expense_id: uuid.UUID) -> list[Attachment]:
+        """List attachments for an expense."""
+        return await self.get_by_expense(expense_id)
+

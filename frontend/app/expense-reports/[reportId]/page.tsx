@@ -63,7 +63,11 @@ export default function ReportDetailPage({ params }: ReportDetailPageProps) {
       <ReportExpensesTable expenses={report.expenses} reportId={report.id} />
 
       {/* 4. Attachments */}
-      <AttachmentGrid attachments={report.attachments} />
+      <AttachmentGrid
+        attachments={report.attachments}
+        reportId={report.id}
+        expenseId={report.expenses[0]?.id || "00000000-0000-0000-0000-000000000005"}
+      />
 
       {/* 5 & 6. Totals Card & Activity Timeline Split */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -21,6 +21,7 @@ class AttachmentCreate(APIModel):
     original_filename: str | None = Field(default=None, description="Original filename")
     mime_type: MimeTypeStr
     size_bytes: int = Field(default=0, description="File size in bytes")
+    sha256_hash: str | None = Field(default=None, description="SHA-256 checksum of the file")
     uploaded_by: UUID | None = Field(default=None, description="Uploader user identifier")
     ocr_status: OCRStatus = Field(
         default=OCRStatus.PENDING,
@@ -42,6 +43,7 @@ class AttachmentUpdate(APIModel):
     original_filename: str | None = None
     mime_type: MimeTypeStr | None = None
     size_bytes: int | None = None
+    sha256_hash: str | None = None
     uploaded_by: UUID | None = None
     ocr_status: OCRStatus | None = Field(
         default=None,
@@ -62,8 +64,13 @@ class AttachmentSummaryResponse(TimestampedResponse):
     original_filename: str | None = Field(default=None, description="Original filename")
     mime_type: str = Field(description="MIME type for the uploaded asset")
     size_bytes: int = Field(default=0, description="File size in bytes")
+    sha256_hash: str | None = Field(default=None, description="SHA-256 checksum of the file")
     uploaded_by: UUID | None = Field(default=None, description="Uploader user identifier")
     ocr_status: OCRStatus = Field(description="Current OCR processing status")
+
+    @property
+    def attachment_type(self) -> str:
+        return self.type.value if hasattr(self.type, "value") else str(self.type)
 
 
 class AttachmentResponse(AttachmentSummaryResponse):
