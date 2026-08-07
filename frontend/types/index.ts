@@ -41,3 +41,5 @@ export interface ApiResponse<T> {
 export * from "./dashboard";
 export * from "./event";
 export * from "./expense-report";
+export * from "./expense";
+export * from "./auth";

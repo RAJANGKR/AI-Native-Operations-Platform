@@ -2,6 +2,7 @@ from uuid import UUID
 
 from pydantic import Field
 
+from app.enums.chapter import ChapterStatus
 from app.schemas.common import APIModel, DescriptionStr, NameStr, TimestampedResponse
 
 
@@ -14,6 +15,10 @@ class ChapterCreate(APIModel):
         default=None,
         description="Optional chapter description",
         examples=["Treasury and AI initiatives for the organization"],
+    )
+    status: ChapterStatus = Field(
+        default=ChapterStatus.ACTIVE,
+        description="Chapter lifecycle status",
     )
     is_active: bool = Field(
         default=True,
@@ -33,6 +38,10 @@ class ChapterUpdate(APIModel):
         default=None,
         description="Optional chapter description",
     )
+    status: ChapterStatus | None = Field(
+        default=None,
+        description="Chapter lifecycle status",
+    )
     is_active: bool | None = Field(
         default=None,
         description="Whether the chapter is active",
@@ -47,5 +56,9 @@ class ChapterResponse(TimestampedResponse):
     description: str | None = Field(
         default=None,
         description="Optional chapter description",
+    )
+    status: ChapterStatus = Field(
+        default=ChapterStatus.ACTIVE,
+        description="Chapter lifecycle status",
     )
     is_active: bool = Field(description="Whether the chapter is active")

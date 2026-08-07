@@ -47,7 +47,7 @@ export interface EventKPIs {
   members_count: number;
 }
 
-export interface ExpenseSummary {
+export interface EventExpenseLineSummary {
   id: string;
   merchant?: string | null;
   category: string;
@@ -81,7 +81,7 @@ export interface EventDetails extends EventSummary {
   budget_overview?: BudgetOverview;
   kpis?: EventKPIs;
   reports?: ExpenseReportSummary[];
-  expenses?: ExpenseSummary[];
+  expenses?: EventExpenseLineSummary[];
   timeline?: TimelineItem[];
   attachments?: AttachmentSummary;
 }

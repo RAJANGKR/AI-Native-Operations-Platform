@@ -60,7 +60,7 @@ export default function ReportDetailPage({ params }: ReportDetailPageProps) {
       <ReportSummary report={report} />
 
       {/* 3. Expenses Table */}
-      <ReportExpensesTable expenses={report.expenses} />
+      <ReportExpensesTable expenses={report.expenses} reportId={report.id} />
 
       {/* 4. Attachments */}
       <AttachmentGrid attachments={report.attachments} />

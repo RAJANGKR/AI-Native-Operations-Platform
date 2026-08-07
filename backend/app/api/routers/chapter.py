@@ -10,6 +10,23 @@ from app.services.chapter_service import ChapterService
 router = APIRouter(prefix="/chapters", tags=["Chapters"])
 
 
+@router.get(
+    "/",
+    response_model=list[ChapterResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List all chapters",
+    description="Return all chapters.",
+)
+async def get_chapters(
+    service: ChapterService = Depends(get_chapter_service),
+) -> list[ChapterResponse]:
+    try:
+        chapters = await service.get_all_chapters()
+        return [ChapterResponse.model_validate(chapter) for chapter in chapters]
+    except Exception as exc:
+        translate_service_exception(exc)
+
+
 @router.post(
     "/",
     response_model=ChapterResponse,

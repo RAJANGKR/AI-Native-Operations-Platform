@@ -2,9 +2,15 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from app.api.dependencies import get_expense_service, translate_service_exception
+from app.api.dependencies import (
+    get_attachment_service,
+    get_expense_service,
+    translate_service_exception,
+)
+from app.schemas.attachment import AttachmentResponse
 from app.schemas.common import MessageResponse
 from app.schemas.expense import ExpenseCreate, ExpenseResponse, ExpenseUpdate
+from app.services.attachment_service import AttachmentService
 from app.services.expense_service import ExpenseService
 
 router = APIRouter(prefix="/expenses", tags=["Expenses"])
@@ -104,3 +110,22 @@ async def delete_expense(
         return MessageResponse(message="Expense deleted successfully")
     except Exception as exc:
         translate_service_exception(exc)
+
+
+@router.get(
+    "/{expense_id}/attachments",
+    response_model=list[AttachmentResponse],
+    status_code=status.HTTP_200_OK,
+    summary="List attachments for expense",
+    description="Return all attachments belonging to a specific expense.",
+)
+async def get_attachments_for_expense(
+    expense_id: UUID,
+    attachment_service: AttachmentService = Depends(get_attachment_service),
+) -> list[AttachmentResponse]:
+    try:
+        attachments = await attachment_service.get_attachments_for_expense(expense_id)
+        return [AttachmentResponse.model_validate(att) for att in attachments]
+    except Exception as exc:
+        translate_service_exception(exc)
+

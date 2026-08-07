@@ -1,11 +1,12 @@
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, String, Text
+from sqlalchemy import Boolean, Enum, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_model import BaseModel
+from app.enums.chapter import ChapterStatus
 
 if TYPE_CHECKING:
     from app.models.event import Event
@@ -31,6 +32,12 @@ class Chapter(BaseModel):
     description: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
+    )
+
+    status: Mapped[ChapterStatus] = mapped_column(
+        Enum(ChapterStatus),
+        default=ChapterStatus.ACTIVE,
+        nullable=False,
     )
 
     is_active: Mapped[bool] = mapped_column(

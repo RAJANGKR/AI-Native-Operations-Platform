@@ -3,6 +3,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.enums.event import EventStatus
 from app.models.event import Event
 from app.repositories.chapter_repository import ChapterRepository
 from app.repositories.event_repository import EventRepository
@@ -47,6 +48,13 @@ class EventService(BaseService):
 
         return await self._run_in_transaction(
             lambda: self.event_repository.update(event, **data)
+        )
+
+    async def archive_event(self, event_id: uuid.UUID) -> Event:
+        """Soft-archive an event without deleting historical records."""
+        return await self.update_event(
+            event_id,
+            status=EventStatus.ARCHIVED,
         )
 
     async def delete_event(self, event_id: uuid.UUID) -> None:

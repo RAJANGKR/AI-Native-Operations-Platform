@@ -1,8 +1,9 @@
 import uuid
 from datetime import date
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, Enum, ForeignKey, String, Text
+from sqlalchemy import Date, Enum, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,6 +35,12 @@ class Event(BaseModel):
         nullable=True,
     )
 
+    budget: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2),
+        default=Decimal("0.00"),
+        nullable=False,
+    )
+
     start_date: Mapped[date | None] = mapped_column(
         Date,
         nullable=True,
@@ -50,6 +57,11 @@ class Event(BaseModel):
         nullable=False,
     )
 
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+    )
+
     chapter: Mapped["Chapter"] = relationship(
         back_populates="events",
     )
@@ -57,3 +69,7 @@ class Event(BaseModel):
     expense_reports: Mapped[list["ExpenseReport"]] = relationship(
         back_populates="event",
     )
+
+    @property
+    def title(self) -> str:
+        return self.name

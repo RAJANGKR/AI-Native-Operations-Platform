@@ -3,6 +3,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.enums.chapter import ChapterStatus
 from app.models.chapter import Chapter
 from app.repositories.chapter_repository import ChapterRepository
 from app.repositories.organization_repository import OrganizationRepository
@@ -35,6 +36,10 @@ class ChapterService(BaseService):
         """Return a chapter by id."""
         return await self.chapter_repository.get_by_id(chapter_id)
 
+    async def get_all_chapters(self) -> list[Chapter]:
+        """Return all chapters."""
+        return await self.chapter_repository.get_all()
+
     async def update_chapter(self, chapter_id: uuid.UUID, **data: Any) -> Chapter:
         """Update an existing chapter."""
         chapter = await self.chapter_repository.get_by_id(chapter_id)
@@ -49,6 +54,14 @@ class ChapterService(BaseService):
 
         return await self._run_in_transaction(
             lambda: self.chapter_repository.update(chapter, **data)
+        )
+
+    async def archive_chapter(self, chapter_id: uuid.UUID) -> Chapter:
+        """Soft-archive a chapter without physically deleting historical records."""
+        return await self.update_chapter(
+            chapter_id,
+            status=ChapterStatus.ARCHIVED,
+            is_active=False,
         )
 
     async def delete_chapter(self, chapter_id: uuid.UUID) -> None:

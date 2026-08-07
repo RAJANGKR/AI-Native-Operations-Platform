@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   description: "Next-generation financial operations and expense management platform.",
 };
 
+import { ToastContainer } from "@/components/ui/toast";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -31,6 +33,7 @@ export default function RootLayout({
       >
         <QueryProvider>
           <AppShell>{children}</AppShell>
+          <ToastContainer />
         </QueryProvider>
       </body>
     </html>

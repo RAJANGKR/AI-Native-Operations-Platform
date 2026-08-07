@@ -3,9 +3,26 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Save, Plus, FileText } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { ChevronLeft, Save, Plus, FileText, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  useCreateExpenseReport,
+  useUpdateExpenseReport,
+} from "@/hooks/use-expense-report-mutations";
+import { toast } from "@/components/ui/toast";
+
+const reportFormSchema = z.object({
+  title: z.string().min(1, "Report title is required"),
+  chapter: z.string().min(1, "Chapter is required"),
+  event: z.string().optional(),
+  description: z.string().optional(),
+});
+
+type ReportFormValues = z.infer<typeof reportFormSchema>;
 
 interface ReportFormProps {
   mode: "create" | "edit";
@@ -20,14 +37,71 @@ interface ReportFormProps {
 
 export function ReportForm({ mode, initialValues }: ReportFormProps) {
   const router = useRouter();
-  const [title, setTitle] = React.useState(initialValues?.title || "");
-  const [chapter, setChapter] = React.useState(initialValues?.chapter || "AI Chapter");
-  const [event, setEvent] = React.useState(initialValues?.event || "RTMASS 2026");
-  const [description, setDescription] = React.useState(initialValues?.description || "");
+  const createMutation = useCreateExpenseReport();
+  const updateMutation = useUpdateExpenseReport();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    router.push("/expense-reports");
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<ReportFormValues>({
+    resolver: zodResolver(reportFormSchema),
+    defaultValues: {
+      title: initialValues?.title || "",
+      chapter: initialValues?.chapter || "AI Chapter",
+      event: initialValues?.event || "RTMASS 2026",
+      description: initialValues?.description || "",
+    },
+  });
+
+  const onSubmit = async (values: ReportFormValues) => {
+    try {
+      if (mode === "create") {
+        const payload = {
+          organization_id: "00000000-0000-0000-0000-000000000001",
+          member_id: "00000000-0000-0000-0000-000000000002",
+          chapter_id: "00000000-0000-0000-0000-000000000003",
+          title: values.title,
+          description: values.description || null,
+          status: "draft",
+        };
+
+        const res = await createMutation.mutateAsync(payload);
+        toast({
+          type: "success",
+          title: "Report Created",
+          description: "New expense report created successfully.",
+        });
+        router.push(res?.id ? `/expense-reports/${res.id}` : "/expense-reports");
+      } else if (mode === "edit" && initialValues?.id) {
+        const payload = {
+          title: values.title,
+          description: values.description || null,
+        };
+
+        await updateMutation.mutateAsync({
+          reportId: initialValues.id,
+          data: payload,
+        });
+
+        toast({
+          type: "success",
+          title: "Report Updated",
+          description: "Expense report has been updated successfully.",
+        });
+        router.push(`/expense-reports/${initialValues.id}`);
+      }
+    } catch (err: any) {
+      toast({
+        type: "error",
+        title: mode === "create" ? "Failed to Create Report" : "Failed to Update Report",
+        description: err?.response?.data?.detail || err.message || "An unexpected error occurred.",
+      });
+    }
   };
 
   return (
@@ -59,7 +133,7 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
         </CardHeader>
 
         <CardContent className="pt-6">
-          <form onSubmit={handleSubmit} className="space-y-5 text-xs">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 text-xs">
             {/* Title */}
             <div className="space-y-1.5">
               <label className="font-bold text-slate-900">
@@ -67,12 +141,14 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
               </label>
               <input
                 type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                disabled={isPending}
+                {...register("title")}
                 placeholder="e.g. Keynote Speaker Travel & Accommodation"
-                className="h-10 w-full rounded-lg border border-slate-200 px-3.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                className="h-10 w-full rounded-lg border border-slate-200 px-3.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 disabled:opacity-50"
               />
+              {errors.title && (
+                <p className="text-[11px] text-rose-600 font-medium">{errors.title.message}</p>
+              )}
             </div>
 
             {/* Chapter & Event Split */}
@@ -82,9 +158,9 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
                   Chapter <span className="text-rose-500">*</span>
                 </label>
                 <select
-                  value={chapter}
-                  onChange={(e) => setChapter(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-xs text-slate-900 focus:border-slate-400 focus:outline-none cursor-pointer"
+                  disabled={isPending}
+                  {...register("chapter")}
+                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-xs text-slate-900 focus:border-slate-400 focus:outline-none cursor-pointer disabled:opacity-50"
                 >
                   <option value="AI Chapter">AI Chapter</option>
                   <option value="Coding Club">Coding Club</option>
@@ -93,6 +169,9 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
                   <option value="Cultural Board">Cultural Board</option>
                   <option value="Physics Forum">Physics Forum</option>
                 </select>
+                {errors.chapter && (
+                  <p className="text-[11px] text-rose-600 font-medium">{errors.chapter.message}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -100,9 +179,9 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
                   Associated Event <span className="text-slate-400 font-normal">(Optional)</span>
                 </label>
                 <select
-                  value={event}
-                  onChange={(e) => setEvent(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-xs text-slate-900 focus:border-slate-400 focus:outline-none cursor-pointer"
+                  disabled={isPending}
+                  {...register("event")}
+                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-xs text-slate-900 focus:border-slate-400 focus:outline-none cursor-pointer disabled:opacity-50"
                 >
                   <option value="RTMASS 2026">RTMASS 2026</option>
                   <option value="Hackathon 2026">Hackathon 2026</option>
@@ -119,10 +198,10 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
               <label className="font-bold text-slate-900">Description / Purpose</label>
               <textarea
                 rows={4}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                disabled={isPending}
+                {...register("description")}
                 placeholder="Describe the purpose of this expense batch and details for Treasurer audit..."
-                className="w-full rounded-lg border border-slate-200 p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                className="w-full rounded-lg border border-slate-200 p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 disabled:opacity-50"
               />
             </div>
 
@@ -131,16 +210,21 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
               <Button
                 type="button"
                 variant="outline"
+                disabled={isPending}
                 onClick={() => router.push("/expense-reports")}
               >
                 Cancel
               </Button>
-              <Button type="button" variant="secondary" onClick={() => router.push("/expense-reports")}>
-                <Save className="h-4 w-4 mr-1.5" />
-                Save Draft
-              </Button>
-              <Button type="submit" className="gap-1.5">
-                <Plus className="h-4 w-4" />
+              <Button
+                type="submit"
+                disabled={isPending}
+                className="gap-1.5"
+              >
+                {isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
                 {mode === "create" ? "Create Expense Report" : "Update Report"}
               </Button>
             </div>

@@ -3,10 +3,12 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Edit3, Trash2, Download, Calendar, Layers, User, Tag } from "lucide-react";
+import { ChevronLeft, Edit3, Trash2, Download, Calendar, Layers, Tag, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ReportDetailData } from "@/constants/mock-reports-data";
+import { useDeleteExpenseReport } from "@/hooks/use-expense-report-mutations";
+import { toast } from "@/components/ui/toast";
 
 interface ReportHeaderProps {
   report: ReportDetailData;
@@ -14,6 +16,26 @@ interface ReportHeaderProps {
 
 export function ReportHeader({ report }: ReportHeaderProps) {
   const router = useRouter();
+  const deleteMutation = useDeleteExpenseReport();
+  const [showConfirmDelete, setShowConfirmDelete] = React.useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(report.id);
+      toast({
+        type: "success",
+        title: "Report Deleted",
+        description: `Expense report ${report.id} was deleted successfully.`,
+      });
+      router.push("/expense-reports");
+    } catch (err: any) {
+      toast({
+        type: "error",
+        title: "Failed to Delete Report",
+        description: err?.response?.data?.detail || err.message || "Could not delete report.",
+      });
+    }
+  };
 
   const getStatusType = (status: ReportDetailData["status"]) => {
     switch (status) {
@@ -87,8 +109,18 @@ export function ReportHeader({ report }: ReportHeaderProps) {
             <Edit3 className="h-3.5 w-3.5" />
             Edit Report
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs text-rose-600 hover:bg-rose-50 border-rose-200">
-            <Trash2 className="h-3.5 w-3.5" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowConfirmDelete(true)}
+            disabled={deleteMutation.isPending}
+            className="gap-1.5 text-xs text-rose-600 hover:bg-rose-50 border-rose-200"
+          >
+            {deleteMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
             Delete
           </Button>
           <Button size="sm" className="gap-1.5 text-xs">
@@ -97,6 +129,41 @@ export function ReportHeader({ report }: ReportHeaderProps) {
           </Button>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showConfirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-3 text-rose-600">
+              <AlertTriangle className="h-6 w-6 shrink-0" />
+              <h3 className="text-base font-bold text-slate-900">Delete Expense Report</h3>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to delete <span className="font-bold text-slate-900">"{report.title}"</span> ({report.id})? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2.5 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={deleteMutation.isPending}
+                onClick={() => setShowConfirmDelete(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={deleteMutation.isPending}
+                onClick={handleDelete}
+                className="bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
+              >
+                {deleteMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Confirm Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

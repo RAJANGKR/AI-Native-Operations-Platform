@@ -1,7 +1,7 @@
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum, ForeignKey, String, Text
+from sqlalchemy import Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +24,7 @@ class Attachment(BaseModel):
 
     type: Mapped[AttachmentType] = mapped_column(
         Enum(AttachmentType),
+        default=AttachmentType.RECEIPT,
         nullable=False,
     )
 
@@ -32,9 +33,25 @@ class Attachment(BaseModel):
         nullable=False,
     )
 
+    original_filename: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
     mime_type: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
+    )
+
+    size_bytes: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    uploaded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
     )
 
     ocr_status: Mapped[OCRStatus] = mapped_column(

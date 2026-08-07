@@ -6,3 +6,4 @@ class EventStatus(str, Enum):
     ACTIVE = "active"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+    ARCHIVED = "archived"
