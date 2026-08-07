@@ -1,3 +1,15 @@
-# Project X
+# AI-Native Operations Platform
 
-Repository scaffold for the Project X application.
+Production-grade AI-assisted operations management platform.
+
+## Tech Stack
+
+- React
+- FastAPI
+- PostgreSQL
+- Supabase
+- OCR
+
+Status:
+
+🚧 Under Development

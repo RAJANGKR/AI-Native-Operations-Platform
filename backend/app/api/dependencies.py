@@ -8,6 +8,7 @@ from app.db.session import SessionLocal
 from app.services.attachment_service import AttachmentService
 from app.services.budget_service import BudgetService
 from app.services.chapter_service import ChapterService
+from app.services.dashboard_service import DashboardService
 from app.services.event_service import EventService
 from app.services.expense_report_service import ExpenseReportService
 from app.services.expense_service import ExpenseService
@@ -75,6 +76,13 @@ def get_attachment_service(
 ) -> AttachmentService:
     """Create an attachment service."""
     return AttachmentService(session)
+
+
+def get_dashboard_service(
+    session: AsyncSession = Depends(get_db),
+) -> DashboardService:
+    """Create a dashboard service."""
+    return DashboardService(session)
 
 
 def translate_service_exception(exc: Exception) -> None:

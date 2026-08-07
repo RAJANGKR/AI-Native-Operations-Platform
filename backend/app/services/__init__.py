@@ -2,6 +2,7 @@ from app.services.attachment_service import AttachmentService
 from app.services.base import BaseService
 from app.services.budget_service import BudgetService
 from app.services.chapter_service import ChapterService
+from app.services.dashboard_service import DashboardService
 from app.services.event_service import EventService
 from app.services.expense_report_service import ExpenseReportService
 from app.services.expense_service import ExpenseService

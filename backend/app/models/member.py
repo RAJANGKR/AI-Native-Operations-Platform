@@ -1,15 +1,12 @@
 import uuid
-from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_model import BaseModel
-
-if TYPE_CHECKING:
-    from app.models.expense_report import ExpenseReport
-    from app.models.organization import Organization
+from app.models.organization import Organization
+from app.models.expense import Expense
 
 
 class Member(BaseModel):
@@ -18,7 +15,6 @@ class Member(BaseModel):
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("organizations.id"),
-        index=True,
         nullable=False,
     )
 
@@ -49,7 +45,7 @@ class Member(BaseModel):
         back_populates="members",
     )
 
-    expense_reports: Mapped[list["ExpenseReport"]] = relationship(
+    expenses: Mapped[list["Expense"]] = relationship(
         back_populates="member",
         cascade="all, delete-orphan",
     )

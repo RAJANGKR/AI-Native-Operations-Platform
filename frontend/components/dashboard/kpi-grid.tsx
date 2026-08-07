@@ -4,7 +4,7 @@ import * as React from "react";
 import { Wallet, PieChart, FileClock, Calendar, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { KPI_DATA, KPIItem } from "@/constants/mock-dashboard-data";
-import { cn } from "@/lib/utils";
+import { DashboardKPIs } from "@/types/dashboard";
 
 const ICON_MAP = {
   Wallet: Wallet,
@@ -68,10 +68,61 @@ export function KPICard({ item }: { item: KPIItem }) {
   );
 }
 
-export function KPIGrid() {
+interface KPIGridProps {
+  data?: DashboardKPIs;
+}
+
+export function KPIGrid({ data }: KPIGridProps) {
+  const items: KPIItem[] = data
+    ? [
+        {
+          id: "total-budget",
+          title: "Total Budget",
+          value: `₹${Number(data.total_budget || 0).toLocaleString("en-IN")}`,
+          subtext: "Allocated Treasury Budget",
+          change: "Cap",
+          trend: "up",
+          iconName: "Wallet",
+        },
+        {
+          id: "total-spent",
+          title: "Total Spent",
+          value: `₹${Number(data.total_spending || 0).toLocaleString("en-IN")}`,
+          subtext:
+            data.total_budget && Number(data.total_budget) > 0
+              ? `${Math.round((Number(data.total_spending) / Number(data.total_budget)) * 100)}% of budget utilized`
+              : "Total expenses recorded",
+          change:
+            data.total_budget && Number(data.total_budget) > 0
+              ? `${Math.round((Number(data.total_spending) / Number(data.total_budget)) * 100)}%`
+              : "0%",
+          trend: "neutral",
+          iconName: "PieChart",
+        },
+        {
+          id: "pending-reports",
+          title: "Pending Reports",
+          value: `${data.pending_approvals || 0}`,
+          subtext: "Awaiting Treasurer Audit",
+          change: "Needs Review",
+          trend: "down",
+          iconName: "FileClock",
+        },
+        {
+          id: "active-events",
+          title: "Active Events",
+          value: `${data.active_events || 0}`,
+          subtext: `${data.total_members || 0} active members`,
+          change: "Running",
+          trend: "up",
+          iconName: "Calendar",
+        },
+      ]
+    : KPI_DATA;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {KPI_DATA.map((item) => (
+      {items.map((item) => (
         <KPICard key={item.id} item={item} />
       ))}
     </div>

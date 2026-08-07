@@ -4,8 +4,27 @@ import * as React from "react";
 import { ArrowUpRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { RECENT_EXPENSES_DATA } from "@/constants/mock-dashboard-data";
+import { RecentExpenseItem } from "@/types/dashboard";
 
-export function ExpensesTable() {
+interface ExpensesTableProps {
+  data?: RecentExpenseItem[];
+}
+
+export function ExpensesTable({ data }: ExpensesTableProps) {
+  const expenses = React.useMemo(() => {
+    if (!data) return RECENT_EXPENSES_DATA;
+    if (data.length === 0) return [];
+    return data.map((exp) => ({
+      id: exp.id,
+      merchant: exp.merchant || "Vendor",
+      category: exp.category.charAt(0).toUpperCase() + exp.category.slice(1),
+      amount: `₹${Number(exp.amount).toLocaleString("en-IN")}`,
+      date: exp.expense_date
+        ? new Date(exp.expense_date).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
+        : "N/A",
+    }));
+  }, [data]);
+
   return (
     <Card className="transition-all duration-200 hover:shadow-subtle overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -30,43 +49,47 @@ export function ExpensesTable() {
               <tr>
                 <th className="py-3 px-5">Merchant</th>
                 <th className="py-3 px-4">Category</th>
-                <th className="py-3 px-4">Linked Report</th>
                 <th className="py-3 px-4 text-right">Amount</th>
                 <th className="py-3 px-5 text-right">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
-              {RECENT_EXPENSES_DATA.map((expense) => (
-                <tr
-                  key={expense.id}
-                  className="transition-colors hover:bg-slate-50/80 group cursor-pointer"
-                >
-                  <td className="py-3 px-5">
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-slate-900 group-hover:text-slate-950">
-                        {expense.merchant}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        {expense.id}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
-                      {expense.category}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 font-normal text-slate-600 truncate max-w-[200px]">
-                    {expense.reportTitle}
-                  </td>
-                  <td className="py-3 px-4 text-right font-bold text-slate-900">
-                    {expense.amount}
-                  </td>
-                  <td className="py-3 px-5 text-right font-normal text-slate-500">
-                    {expense.date}
+              {expenses.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-xs text-slate-500 font-medium">
+                    No recent expenses logged.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                expenses.map((expense) => (
+                  <tr
+                    key={expense.id}
+                    className="transition-colors hover:bg-slate-50/80 group cursor-pointer"
+                  >
+                    <td className="py-3 px-5">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-900 group-hover:text-slate-950">
+                          {expense.merchant}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {expense.id}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                        {expense.category}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right font-bold text-slate-900">
+                      {expense.amount}
+                    </td>
+                    <td className="py-3 px-5 text-right font-normal text-slate-500">
+                      {expense.date}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

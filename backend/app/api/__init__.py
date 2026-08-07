@@ -4,6 +4,7 @@ from app.api.routers import (
     attachment_router,
     budget_router,
     chapter_router,
+    dashboard_router,
     event_router,
     expense_report_router,
     expense_router,
@@ -23,3 +24,4 @@ api_router.include_router(budget_router)
 api_router.include_router(expense_report_router)
 api_router.include_router(expense_router)
 api_router.include_router(attachment_router)
+api_router.include_router(dashboard_router)

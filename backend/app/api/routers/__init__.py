@@ -1,6 +1,7 @@
 from app.api.routers.attachment import router as attachment_router
 from app.api.routers.budget import router as budget_router
 from app.api.routers.chapter import router as chapter_router
+from app.api.routers.dashboard import router as dashboard_router
 from app.api.routers.event import router as event_router
 from app.api.routers.expense import router as expense_router
 from app.api.routers.expense_report import router as expense_report_router

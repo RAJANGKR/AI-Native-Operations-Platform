@@ -2,6 +2,7 @@ from app.repositories.attachment_repository import AttachmentRepository
 from app.repositories.base import BaseRepository
 from app.repositories.budget_repository import BudgetRepository
 from app.repositories.chapter_repository import ChapterRepository
+from app.repositories.dashboard_repository import DashboardRepository
 from app.repositories.event_repository import EventRepository
 from app.repositories.expense_repository import ExpenseRepository
 from app.repositories.expense_report_repository import ExpenseReportRepository

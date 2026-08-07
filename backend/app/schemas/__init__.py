@@ -6,6 +6,15 @@ from app.schemas.attachment import (
 )
 from app.schemas.budget import BudgetCreate, BudgetResponse, BudgetUpdate
 from app.schemas.chapter import ChapterCreate, ChapterResponse, ChapterUpdate
+from app.schemas.dashboard import (
+    CategorySpendingItem,
+    DashboardKPIs,
+    DashboardResponse,
+    MonthlySpendingItem,
+    RecentExpenseItem,
+    RecentReportItem,
+    TopEventItem,
+)
 from app.schemas.common import (
     ErrorResponse,
     HealthResponse,
