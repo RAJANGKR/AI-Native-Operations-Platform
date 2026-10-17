@@ -15,11 +15,11 @@ type Listener = (toasts: ToastMessage[]) => void;
 let toasts: ToastMessage[] = [];
 let listeners: Listener[] = [];
 
-export function toast(options: { type?: "success" | "error" | "info"; title: string; description?: string }) {
+export function toast(options: { type?: "success" | "error" | "info" | "neutral"; title: string; description?: string }) {
   const id = Math.random().toString(36).substring(2, 9);
   const newToast: ToastMessage = {
     id,
-    type: options.type || "success",
+    type: options.type === "error" ? "error" : options.type === "info" || options.type === "neutral" ? "info" : "success",
     title: options.title,
     description: options.description,
   };
@@ -30,6 +30,13 @@ export function toast(options: { type?: "success" | "error" | "info"; title: str
     toasts = toasts.filter((t) => t.id !== id);
     listeners.forEach((l) => l(toasts));
   }, 4000);
+}
+
+export function useToast() {
+  return {
+    addToast: (options: { type?: "success" | "error" | "info" | "neutral"; title: string; description?: string }) => toast(options),
+    toast: (options: { type?: "success" | "error" | "info" | "neutral"; title: string; description?: string }) => toast(options),
+  };
 }
 
 export function ToastContainer() {

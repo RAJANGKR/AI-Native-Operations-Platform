@@ -1,8 +1,7 @@
-from fastapi import APIRouter
-from app.utils.responses import success_response
-from fastapi import HTTPException
+from fastapi import APIRouter, HTTPException
 
 from app.core.config import settings
+from app.utils.responses import success_response
 
 router = APIRouter(
     prefix="/health",

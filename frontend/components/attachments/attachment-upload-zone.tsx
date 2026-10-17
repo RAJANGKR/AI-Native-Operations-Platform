@@ -21,13 +21,14 @@ interface UploadTask {
   controller?: AbortController;
 }
 
-const ALLOWED_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".heic"];
+const ALLOWED_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".webp", ".heic"];
 const REJECTED_EXTENSIONS = [".zip", ".rar", ".exe", ".js", ".bat", ".dll"];
 const ALLOWED_MIME_TYPES = [
   "application/pdf",
   "image/png",
   "image/jpeg",
   "image/jpg",
+  "image/webp",
   "image/heic",
   "image/heif",
 ];
@@ -48,11 +49,19 @@ export function AttachmentUploadZone({
     if (REJECTED_EXTENSIONS.includes(ext)) {
       return `File type '${ext}' is strictly forbidden for security reasons.`;
     }
-    if (
-      !ALLOWED_EXTENSIONS.includes(ext) &&
-      !ALLOWED_MIME_TYPES.includes(file.type.toLowerCase())
-    ) {
-      return `Invalid file type '${ext || file.type}'. Allowed: PDF, PNG, JPG, JPEG, HEIC.`;
+    if (!ALLOWED_EXTENSIONS.includes(ext) || !ALLOWED_MIME_TYPES.includes(file.type.toLowerCase())) {
+      return `Invalid file type '${ext || file.type}'. Allowed: PDF, PNG, JPG, JPEG, WEBP, HEIC.`;
+    }
+    const extensionMimeTypes: Record<string, string[]> = {
+      ".pdf": ["application/pdf"],
+      ".png": ["image/png"],
+      ".jpg": ["image/jpeg", "image/jpg"],
+      ".jpeg": ["image/jpeg", "image/jpg"],
+      ".webp": ["image/webp"],
+      ".heic": ["image/heic", "image/heif"],
+    };
+    if (!extensionMimeTypes[ext]?.includes(file.type.toLowerCase())) {
+      return `File extension '${ext}' does not match its declared MIME type.`;
     }
     if (file.size > MAX_SIZE_BYTES) {
       return `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds 10 MB limit.`;
@@ -205,7 +214,7 @@ export function AttachmentUploadZone({
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".pdf,.png,.jpg,.jpeg,.heic"
+          accept=".pdf,.png,.jpg,.jpeg,.webp,.heic"
           onChange={handleFileSelect}
           className="hidden"
         />

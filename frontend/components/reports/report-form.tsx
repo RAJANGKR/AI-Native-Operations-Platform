@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { ChevronLeft, Save, Plus, FileText, Loader2 } from "lucide-react";
+import { ChevronLeft, Plus, FileText, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,11 +14,14 @@ import {
   useUpdateExpenseReport,
 } from "@/hooks/use-expense-report-mutations";
 import { toast } from "@/components/ui/toast";
+import { useAuth } from "@/hooks/use-auth";
+import apiClient from "@/services/api";
 
 const reportFormSchema = z.object({
   title: z.string().min(1, "Report title is required"),
-  chapter: z.string().min(1, "Chapter is required"),
-  event: z.string().optional(),
+  club_id: z.string().min(1, "Club selection is required"),
+  chapter_id: z.string().min(1, "Chapter selection is required"),
+  event_id: z.string().optional(),
   description: z.string().optional(),
 });
 
@@ -35,12 +38,34 @@ interface ReportFormProps {
   };
 }
 
+interface ClubOption {
+  id: string;
+  name: string;
+}
+
+interface ChapterOption {
+  id: string;
+  organization_id: string;
+  name: string;
+}
+
+interface EventOption {
+  id: string;
+  chapter_id: string;
+  name: string;
+}
+
 export function ReportForm({ mode, initialValues }: ReportFormProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const createMutation = useCreateExpenseReport();
   const updateMutation = useUpdateExpenseReport();
 
   const isPending = createMutation.isPending || updateMutation.isPending;
+
+  const [clubs, setClubs] = React.useState<ClubOption[]>([]);
+  const [chapters, setChapters] = React.useState<ChapterOption[]>([]);
+  const [events, setEvents] = React.useState<EventOption[]>([]);
 
   const {
     register,
@@ -52,19 +77,77 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
     resolver: zodResolver(reportFormSchema),
     defaultValues: {
       title: initialValues?.title || "",
-      chapter: initialValues?.chapter || "AI Chapter",
-      event: initialValues?.event || "RTMASS 2026",
+      club_id: "",
+      chapter_id: "",
+      event_id: "",
       description: initialValues?.description || "",
     },
   });
+
+  const selectedClubId = watch("club_id");
+  const selectedChapterId = watch("chapter_id");
+
+  // 1. Load Clubs from backend DB
+  React.useEffect(() => {
+    async function loadClubs() {
+      try {
+        const res = await apiClient.get<ClubOption[]>("/organizations");
+        setClubs(res.data);
+        if (res.data.length > 0 && !selectedClubId) {
+          setValue("club_id", res.data[0].id);
+        }
+      } catch {
+        setClubs([]);
+      }
+    }
+    loadClubs();
+  }, []);
+
+  // 2. Load Chapters dynamically when Club changes
+  React.useEffect(() => {
+    async function loadChapters() {
+      try {
+        const res = await apiClient.get<ChapterOption[]>("/chapters");
+        const filtered = selectedClubId
+          ? res.data.filter((c) => c.organization_id === selectedClubId)
+          : res.data;
+        setChapters(filtered.length > 0 ? filtered : res.data);
+        if (filtered.length > 0) {
+          setValue("chapter_id", filtered[0].id);
+        } else if (res.data.length > 0) {
+          setValue("chapter_id", res.data[0].id);
+        }
+      } catch {
+        setChapters([]);
+      }
+    }
+    loadChapters();
+  }, [selectedClubId]);
+
+  // 3. Load Events dynamically when Chapter changes
+  React.useEffect(() => {
+    async function loadEvents() {
+      try {
+        const res = await apiClient.get<EventOption[]>("/events");
+        const filtered = selectedChapterId
+          ? res.data.filter((e) => e.chapter_id === selectedChapterId)
+          : res.data;
+        setEvents(filtered.length > 0 ? filtered : res.data);
+      } catch {
+        setEvents([]);
+      }
+    }
+    loadEvents();
+  }, [selectedChapterId]);
 
   const onSubmit = async (values: ReportFormValues) => {
     try {
       if (mode === "create") {
         const payload = {
-          organization_id: "00000000-0000-0000-0000-000000000001",
-          member_id: "00000000-0000-0000-0000-000000000002",
-          chapter_id: "00000000-0000-0000-0000-000000000003",
+          organization_id: values.club_id || user?.organization_id || "00000000-0000-0000-0000-000000000001",
+          member_id: user?.id || "00000000-0000-0000-0000-000000000002",
+          chapter_id: values.chapter_id || "00000000-0000-0000-0000-000000000003",
+          event_id: values.event_id || null,
           title: values.title,
           description: values.description || null,
           status: "draft",
@@ -74,7 +157,7 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
         toast({
           type: "success",
           title: "Report Created",
-          description: "New expense report created successfully.",
+          description: "Expense report batch created successfully. Add itemized expense lines now.",
         });
         router.push(res?.id ? `/expense-reports/${res.id}` : "/expense-reports");
       } else if (mode === "edit" && initialValues?.id) {
@@ -96,16 +179,23 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
         router.push(`/expense-reports/${initialValues.id}`);
       }
     } catch (err: any) {
+      const errorDetail = err?.response?.data?.detail;
+      const detailStr = typeof errorDetail === "string"
+        ? errorDetail
+        : Array.isArray(errorDetail)
+        ? errorDetail.map((d: any) => `${d.loc?.join(".")}: ${d.msg}`).join("; ")
+        : err?.message || "An unexpected error occurred.";
+
       toast({
         type: "error",
         title: mode === "create" ? "Failed to Create Report" : "Failed to Update Report",
-        description: err?.response?.data?.detail || err.message || "An unexpected error occurred.",
+        description: detailStr,
       });
     }
   };
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto pb-10">
+    <div className="space-y-6 max-w-3xl mx-auto pb-10 select-none">
       {/* Back Link */}
       <Link
         href="/expense-reports"
@@ -126,7 +216,7 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
                 {mode === "create" ? "Create New Expense Report" : `Edit Expense Report (${initialValues?.id})`}
               </CardTitle>
               <CardDescription>
-                Provide report details, select associated chapter event, and add voucher description.
+                Select College Club, Chapter wing, and associated Event to log student expense vouchers.
               </CardDescription>
             </div>
           </div>
@@ -143,7 +233,7 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
                 type="text"
                 disabled={isPending}
                 {...register("title")}
-                placeholder="e.g. Keynote Speaker Travel & Accommodation"
+                placeholder="e.g. Workshop Guest Speaker Travel & Refreshments"
                 className="h-10 w-full rounded-lg border border-slate-200 px-3.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 disabled:opacity-50"
               />
               {errors.title && (
@@ -151,44 +241,62 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
               )}
             </div>
 
-            {/* Chapter & Event Split */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Cascading Flow Dropdowns: Club -> Chapter -> Event */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* 1. Select Club */}
               <div className="space-y-1.5">
                 <label className="font-bold text-slate-900">
-                  Chapter <span className="text-rose-500">*</span>
+                  Select Club <span className="text-rose-500">*</span>
                 </label>
                 <select
-                  disabled={isPending}
-                  {...register("chapter")}
-                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-xs text-slate-900 focus:border-slate-400 focus:outline-none cursor-pointer disabled:opacity-50"
+                  disabled={isPending || clubs.length === 0}
+                  {...register("club_id")}
+                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-xs text-slate-900 focus:border-slate-400 focus:outline-none cursor-pointer disabled:opacity-50 bg-white"
                 >
-                  <option value="AI Chapter">AI Chapter</option>
-                  <option value="Coding Club">Coding Club</option>
-                  <option value="Robotics Society">Robotics Society</option>
-                  <option value="Mechanical Guild">Mechanical Guild</option>
-                  <option value="Cultural Board">Cultural Board</option>
-                  <option value="Physics Forum">Physics Forum</option>
+                  {clubs.length === 0 ? (
+                    <option value="">No clubs found in DB</option>
+                  ) : (
+                    clubs.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))
+                  )}
                 </select>
-                {errors.chapter && (
-                  <p className="text-[11px] text-rose-600 font-medium">{errors.chapter.message}</p>
-                )}
               </div>
 
+              {/* 2. Select Chapter */}
               <div className="space-y-1.5">
                 <label className="font-bold text-slate-900">
-                  Associated Event <span className="text-slate-400 font-normal">(Optional)</span>
+                  Select Chapter <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  disabled={isPending || chapters.length === 0}
+                  {...register("chapter_id")}
+                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-xs text-slate-900 focus:border-slate-400 focus:outline-none cursor-pointer disabled:opacity-50 bg-white"
+                >
+                  {chapters.length === 0 ? (
+                    <option value="">No chapters found</option>
+                  ) : (
+                    chapters.map((chap) => (
+                      <option key={chap.id} value={chap.id}>{chap.name}</option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              {/* 3. Select Event */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-900">
+                  Select Event <span className="text-slate-400 font-normal">(Optional)</span>
                 </label>
                 <select
                   disabled={isPending}
-                  {...register("event")}
-                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-xs text-slate-900 focus:border-slate-400 focus:outline-none cursor-pointer disabled:opacity-50"
+                  {...register("event_id")}
+                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-xs text-slate-900 focus:border-slate-400 focus:outline-none cursor-pointer disabled:opacity-50 bg-white"
                 >
-                  <option value="RTMASS 2026">RTMASS 2026</option>
-                  <option value="Hackathon 2026">Hackathon 2026</option>
-                  <option value="Workshop Series">Workshop Series</option>
-                  <option value="Industrial Visit">Industrial Visit</option>
-                  <option value="Annual Cultural Fest">Annual Cultural Fest</option>
-                  <option value="General Organizational Spend">General Organizational Spend</option>
+                  <option value="">General Organizational Spend</option>
+                  {events.map((e) => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -200,7 +308,7 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
                 rows={4}
                 disabled={isPending}
                 {...register("description")}
-                placeholder="Describe the purpose of this expense batch and details for Treasurer audit..."
+                placeholder="Describe the purpose of this expense batch and voucher details for Treasurer audit..."
                 className="w-full rounded-lg border border-slate-200 p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 disabled:opacity-50"
               />
             </div>
@@ -218,7 +326,7 @@ export function ReportForm({ mode, initialValues }: ReportFormProps) {
               <Button
                 type="submit"
                 disabled={isPending}
-                className="gap-1.5"
+                className="gap-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold cursor-pointer"
               >
                 {isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

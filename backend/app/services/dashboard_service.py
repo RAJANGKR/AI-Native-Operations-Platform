@@ -1,3 +1,4 @@
+import uuid
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,14 +23,15 @@ class DashboardService(BaseService):
         super().__init__(session)
         self.dashboard_repository = DashboardRepository(session)
 
-    async def get_dashboard(self) -> DashboardResponse:
-        """Aggregate data from dashboard repository into DashboardResponse schema."""
+    async def get_dashboard(self, organization_id: uuid.UUID | None) -> DashboardResponse:
+        """Aggregate data from dashboard repository into DashboardResponse schema,
+        scoped to a single organization."""
         # 1. KPIs
-        total_spending = await self.dashboard_repository.get_total_spending()
-        total_budget = await self.dashboard_repository.get_total_budget()
-        active_events = await self.dashboard_repository.get_active_events_count()
-        pending_approvals = await self.dashboard_repository.get_pending_approvals_count()
-        total_members = await self.dashboard_repository.get_total_members_count()
+        total_spending = await self.dashboard_repository.get_total_spending(organization_id)
+        total_budget = await self.dashboard_repository.get_total_budget(organization_id)
+        active_events = await self.dashboard_repository.get_active_events_count(organization_id)
+        pending_approvals = await self.dashboard_repository.get_pending_approvals_count(organization_id)
+        total_members = await self.dashboard_repository.get_total_members_count(organization_id)
 
         kpis = DashboardKPIs(
             total_spending=total_spending,
@@ -40,7 +42,7 @@ class DashboardService(BaseService):
         )
 
         # 2. Monthly Spending
-        raw_monthly = await self.dashboard_repository.get_monthly_spending()
+        raw_monthly = await self.dashboard_repository.get_monthly_spending(organization_id)
         monthly_spending = [
             MonthlySpendingItem(
                 month=f"{year:04d}-{month:02d}",
@@ -50,7 +52,7 @@ class DashboardService(BaseService):
         ]
 
         # 3. Category Spending
-        raw_category = await self.dashboard_repository.get_category_spending()
+        raw_category = await self.dashboard_repository.get_category_spending(organization_id)
         cat_total_sum = sum((amt for _, amt in raw_category), Decimal("0.00"))
 
         spending_by_category = []
@@ -70,7 +72,7 @@ class DashboardService(BaseService):
             )
 
         # 4. Top Events
-        raw_events = await self.dashboard_repository.get_top_events(limit=5)
+        raw_events = await self.dashboard_repository.get_top_events(organization_id, limit=5)
         top_events = [
             TopEventItem(
                 id=item["id"],
@@ -84,7 +86,7 @@ class DashboardService(BaseService):
         ]
 
         # 5. Recent Reports
-        raw_reports = await self.dashboard_repository.get_recent_reports(limit=5)
+        raw_reports = await self.dashboard_repository.get_recent_reports(organization_id, limit=5)
         recent_reports = [
             RecentReportItem(
                 id=item["id"],
@@ -99,7 +101,7 @@ class DashboardService(BaseService):
         ]
 
         # 6. Recent Expenses
-        raw_expenses = await self.dashboard_repository.get_recent_expenses(limit=5)
+        raw_expenses = await self.dashboard_repository.get_recent_expenses(organization_id, limit=5)
         recent_expenses = [
             RecentExpenseItem(
                 id=exp.id,

@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldAlert,
-  Sparkles,
   LogOut,
 } from "lucide-react";
 import { NAVIGATION_ITEMS } from "@/constants/navigation";
@@ -35,16 +34,16 @@ export function Sidebar({ collapsed, onToggleCollapse, className }: SidebarProps
       {/* Brand Header */}
       <div className="flex h-16 items-center justify-between px-4 border-b border-slate-100">
         <Link href="/" className="flex items-center gap-3 overflow-hidden">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white font-bold shadow-xs">
-            <Sparkles className="h-4 w-4 text-emerald-400" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden shadow-xs">
+            <img src="/icon.png" alt="Ledgerly" className="h-9 w-9 object-cover" />
           </div>
           {!collapsed && (
             <div className="flex flex-col whitespace-nowrap">
               <span className="text-sm font-bold tracking-tight text-slate-900">
-                ApexExpense
+                Ledgerly
               </span>
               <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">
-                AI Native OS
+                Treasury, made simple
               </span>
             </div>
           )}
@@ -62,7 +61,10 @@ export function Sidebar({ collapsed, onToggleCollapse, className }: SidebarProps
 
       {/* Navigation List */}
       <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
-        {NAVIGATION_ITEMS.map((item) => {
+        {NAVIGATION_ITEMS.filter((item) => {
+          if (!item.roles) return true;
+          return user ? item.roles.includes(user.role) : true;
+        }).map((item) => {
           const isActive =
             pathname === item.href ||
             (item.href !== "/" && pathname.startsWith(item.href));

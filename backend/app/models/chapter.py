@@ -46,6 +46,15 @@ class Chapter(BaseModel):
         nullable=False,
     )
 
+    # The auto-provisioned catch-all chapter used to file expense reports for
+    # club-wide events (events with no chapter_id, e.g. an annual flagship
+    # event). At most one per organization.
+    is_general: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
     organization: Mapped["Organization"] = relationship(
         back_populates="chapters",
     )

@@ -11,11 +11,13 @@ import { EventGrid } from "@/components/events/event-grid";
 import { EmptyEvents } from "@/components/events/empty-events";
 import { CardSkeleton } from "@/components/ui/loading-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
+import { CreateEventModal } from "@/components/events/create-event-modal";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function EventsListPage() {
   const { data: rawEvents, isLoading, isError, error, refetch } = useEvents();
   const { isTreasurerOrAdmin } = useAuth();
+  const [createModalOpen, setCreateModalOpen] = React.useState(false);
 
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedStatus, setSelectedStatus] = React.useState("all");
@@ -58,7 +60,7 @@ export default function EventsListPage() {
         breadcrumbs={[{ label: "Overview", href: "/" }, { label: "Events" }]}
         actions={
           isTreasurerOrAdmin ? (
-            <Button size="sm" className="gap-1.5">
+            <Button size="sm" onClick={() => setCreateModalOpen(true)} className="gap-1.5 cursor-pointer">
               <Plus className="h-4 w-4" />
               New Event
             </Button>
@@ -103,6 +105,12 @@ export default function EventsListPage() {
           <EmptyEvents onResetFilters={handleResetFilters} />
         )
       )}
+
+      {/* Create Event Modal */}
+      <CreateEventModal
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+      />
     </div>
   );
 }

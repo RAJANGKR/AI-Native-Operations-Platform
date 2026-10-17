@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Download, FileText, Trash2, Loader2, AlertTriangle, Hash, Calendar, HardDrive } from "lucide-react";
+import { Download, FileText, Trash2, Loader2, AlertTriangle, Hash, Calendar, HardDrive, Eye } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { AttachmentUploadZone } from "@/components/attachments/attachment-upload-zone";
+import { AttachmentPreviewModal } from "@/components/attachments/attachment-preview-modal";
 import { useDeleteAttachment, useDownloadAttachment } from "@/hooks/use-attachment-mutations";
 import { useExpenseAttachments } from "@/hooks/use-attachments";
 import { AttachmentResponseItem } from "@/services/attachment";
@@ -24,6 +25,7 @@ export function AttachmentGrid({
 }: AttachmentGridProps) {
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [confirmDeleteFile, setConfirmDeleteFile] = React.useState<AttachmentResponseItem | any | null>(null);
+  const [previewFile, setPreviewFile] = React.useState<any | null>(null);
 
   // Fetch real attachments from FastAPI backend
   const { data: remoteAttachments, refetch } = useExpenseAttachments(expenseId);
@@ -209,16 +211,27 @@ export function AttachmentGrid({
 
                     {/* Card Footer Actions */}
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownload(file)}
-                        disabled={downloadMutation.isPending}
-                        className="h-7 px-2.5 text-[11px] gap-1 bg-white hover:bg-slate-100 border-slate-200"
-                      >
-                        <Download className="h-3 w-3" />
-                        Download
-                      </Button>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPreviewFile(file)}
+                          className="h-7 px-2 text-[11px] gap-1 bg-white hover:bg-slate-100 border-slate-200"
+                        >
+                          <Eye className="h-3 w-3" />
+                          Preview
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownload(file)}
+                          disabled={downloadMutation.isPending}
+                          className="h-7 px-2 text-[11px] gap-1 bg-white hover:bg-slate-100 border-slate-200"
+                        >
+                          <Download className="h-3 w-3" />
+                          Download
+                        </Button>
+                      </div>
 
                       <button
                         type="button"
@@ -241,6 +254,24 @@ export function AttachmentGrid({
           </div>
         </CardContent>
       </Card>
+
+      {/* Preview Modal */}
+      <AttachmentPreviewModal
+        isOpen={Boolean(previewFile)}
+        onClose={() => setPreviewFile(null)}
+        attachment={
+          previewFile
+            ? {
+                id: previewFile.id,
+                file_name: previewFile.original_filename || previewFile.fileName || "receipt.pdf",
+                file_path: previewFile.storage_path,
+                mime_type: previewFile.mime_type,
+                file_size_bytes: previewFile.size_bytes,
+              }
+            : null
+        }
+        onDelete={(id) => setConfirmDeleteFile(previewFile)}
+      />
 
       {/* Confirmation Modal Dialog */}
       {confirmDeleteFile && (

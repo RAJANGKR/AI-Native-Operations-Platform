@@ -1,17 +1,22 @@
+import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
 from app.api.dependencies import (
+    get_current_user,
     get_expense_report_service,
+    get_scope_organization_id,
     translate_service_exception,
 )
+from app.models.member import Member
 from app.schemas.common import MessageResponse
 from app.schemas.expense_report import (
     ExpenseReportCreate,
     ExpenseReportResponse,
     ExpenseReportUpdate,
 )
+# pyrefly: ignore [missing-import]
 from app.services.expense_report_service import ExpenseReportService
 
 router = APIRouter(prefix="/expense-reports", tags=["Expense Reports"])
@@ -22,16 +27,21 @@ router = APIRouter(prefix="/expense-reports", tags=["Expense Reports"])
     response_model=list[ExpenseReportResponse],
     status_code=status.HTTP_200_OK,
     summary="List all expense reports",
-    description="Return all expense reports.",
+    description="Return all expense reports scoped by organization and user role.",
 )
 async def get_reports(
+    current_user: Member = Depends(get_current_user),
+    scope_organization_id: uuid.UUID | None = Depends(get_scope_organization_id),
     service: ExpenseReportService = Depends(get_expense_report_service),
 ) -> list[ExpenseReportResponse]:
     try:
-        reports = await service.get_all_reports()
+        reports = await service.get_all_reports(scope_organization_id)
+        user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+        if user_role.upper() == "MEMBER":
+            reports = [r for r in reports if str(r.member_id) == str(current_user.id)]
         return [ExpenseReportResponse.model_validate(r) for r in reports]
     except Exception as exc:
-        translate_service_exception(exc)
+        return translate_service_exception(exc)
 
 
 @router.post(
@@ -43,13 +53,17 @@ async def get_reports(
 )
 async def create_report(
     payload: ExpenseReportCreate,
+    current_user: Member = Depends(get_current_user),
     service: ExpenseReportService = Depends(get_expense_report_service),
 ) -> ExpenseReportResponse:
     try:
-        report = await service.create_report(**payload.model_dump())
+        data = payload.model_dump()
+        data["organization_id"] = current_user.organization_id
+        data["member_id"] = current_user.id
+        report = await service.create_report(**data)
         return ExpenseReportResponse.model_validate(report)
     except Exception as exc:
-        translate_service_exception(exc)
+        return translate_service_exception(exc)
 
 
 @router.get(
@@ -61,15 +75,16 @@ async def create_report(
 )
 async def get_report(
     report_id: UUID,
+    scope_organization_id: uuid.UUID | None = Depends(get_scope_organization_id),
     service: ExpenseReportService = Depends(get_expense_report_service),
 ) -> ExpenseReportResponse:
     try:
-        report = await service.get_report(report_id)
+        report = await service.get_report(report_id, scope_organization_id)
         if report is None:
             raise ValueError("Expense report not found")
         return ExpenseReportResponse.model_validate(report)
     except Exception as exc:
-        translate_service_exception(exc)
+        return translate_service_exception(exc)
 
 
 @router.patch(
@@ -82,16 +97,21 @@ async def get_report(
 async def update_report(
     report_id: UUID,
     payload: ExpenseReportUpdate,
+    scope_organization_id: uuid.UUID | None = Depends(get_scope_organization_id),
     service: ExpenseReportService = Depends(get_expense_report_service),
 ) -> ExpenseReportResponse:
     try:
+        data = payload.model_dump(exclude_unset=True)
+        data.pop("organization_id", None)
+        data.pop("member_id", None)
         report = await service.update_report(
             report_id,
-            **payload.model_dump(exclude_unset=True),
+            scope_organization_id,
+            **data,
         )
         return ExpenseReportResponse.model_validate(report)
     except Exception as exc:
-        translate_service_exception(exc)
+        return translate_service_exception(exc)
 
 
 @router.delete(
@@ -103,13 +123,14 @@ async def update_report(
 )
 async def delete_report(
     report_id: UUID,
+    scope_organization_id: uuid.UUID | None = Depends(get_scope_organization_id),
     service: ExpenseReportService = Depends(get_expense_report_service),
 ) -> MessageResponse:
     try:
-        await service.delete_report(report_id)
+        await service.delete_report(report_id, scope_organization_id)
         return MessageResponse(message="Expense report deleted successfully")
     except Exception as exc:
-        translate_service_exception(exc)
+        return translate_service_exception(exc)
 
 
 @router.post(
@@ -121,10 +142,11 @@ async def delete_report(
 )
 async def submit_report(
     report_id: UUID,
+    scope_organization_id: uuid.UUID | None = Depends(get_scope_organization_id),
     service: ExpenseReportService = Depends(get_expense_report_service),
 ) -> ExpenseReportResponse:
     try:
-        report = await service.submit_report(report_id)
+        report = await service.submit_report(report_id, scope_organization_id)
         return ExpenseReportResponse.model_validate(report)
     except Exception as exc:
-        translate_service_exception(exc)
+        return translate_service_exception(exc)

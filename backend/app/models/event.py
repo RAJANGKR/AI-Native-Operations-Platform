@@ -13,16 +13,28 @@ from app.enums.event import EventStatus
 if TYPE_CHECKING:
     from app.models.chapter import Chapter
     from app.models.expense_report import ExpenseReport
+    from app.models.organization import Organization
 
 
 class Event(BaseModel):
     __tablename__ = "events"
 
-    chapter_id: Mapped[uuid.UUID] = mapped_column(
+    # Every event belongs to an organization (club) directly, regardless of
+    # whether it also belongs to a specific chapter. This is what makes
+    # club-wide events (e.g. an annual flagship event with no owning
+    # chapter) possible: chapter_id is optional, organization_id is not.
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        index=True,
+        nullable=False,
+    )
+
+    chapter_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("chapters.id"),
         index=True,
-        nullable=False,
+        nullable=True,
     )
 
     name: Mapped[str] = mapped_column(
@@ -62,7 +74,9 @@ class Event(BaseModel):
         nullable=True,
     )
 
-    chapter: Mapped["Chapter"] = relationship(
+    organization: Mapped["Organization"] = relationship()
+
+    chapter: Mapped["Chapter | None"] = relationship(
         back_populates="events",
     )
 

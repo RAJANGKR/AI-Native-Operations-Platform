@@ -90,7 +90,7 @@ MimeTypeStr = Annotated[
 PositiveAmount = Annotated[
     Decimal,
     Field(
-        gt=Decimal("0"),
+        gt=Decimal(0),
         max_digits=12,
         decimal_places=2,
         description="Positive monetary amount",

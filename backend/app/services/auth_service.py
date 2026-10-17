@@ -4,13 +4,24 @@ from datetime import timedelta
 from typing import Any
 
 from app.core.config import settings
-from app.core.security import create_access_token, decode_access_token, verify_password
+from app.core.security import (
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    verify_password,
+)
 from app.models.member import Member
 from app.repositories.member_repository import MemberRepository
 from app.schemas.auth import CurrentUserResponse, LoginResponse
 from app.services.base import BaseService
 
 logger = logging.getLogger(__name__)
+
+
+from sqlalchemy import select
+
+from app.enums.role import Role
+from app.models.organization import Organization
 
 
 class AuthService(BaseService):
@@ -27,17 +38,67 @@ class AuthService(BaseService):
             raise ValueError("Invalid email or password")
 
         if not user.is_active:
-            raise ValueError("User account is inactive")
+            raise ValueError("Invalid email or password")
+
+        if getattr(user, "approval_status", "APPROVED") == "PENDING":
+            raise ValueError("Account pending Treasurer approval. Please wait for Treasurer authorization.")
+
+        if getattr(user, "approval_status", "APPROVED") == "REJECTED":
+            raise ValueError("Registration rejected by Treasurer.")
 
         # If hashed_password is set, verify against plain password
         if user.hashed_password:
             if not verify_password(password, user.hashed_password):
                 raise ValueError("Invalid email or password")
         else:
-            # For development seed members without set password, allow initial authentication
-            logger.info(f"User {email} has no password hash set; allowing initial auth.")
+            user.hashed_password = hash_password(password)
+            await self.session.commit()
 
         return user
+
+    async def register_user(
+        self,
+        full_name: str,
+        email: str,
+        department: str,
+        year: str,
+        password: str,
+    ) -> Member:
+        """Register a new student account with PENDING approval status."""
+        existing = await self.member_repository.get_user_by_email(email)
+        if existing is not None:
+            raise ValueError("An account with this college email already exists.")
+
+        org_stmt = select(Organization)
+        org_result = await self.session.execute(org_stmt)
+        org = org_result.scalars().first()
+
+        if org is None:
+            org = Organization(
+                id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                name="Apex Operations Org",
+                currency="INR",
+            )
+            self.session.add(org)
+            await self.session.flush()
+
+        hashed = hash_password(password)
+        new_member = Member(
+            id=uuid.uuid4(),
+            organization_id=org.id,
+            email=email,
+            full_name=full_name,
+            department=department,
+            year=year,
+            role=Role.MEMBER,
+            hashed_password=hashed,
+            approval_status="PENDING",
+            is_active=True,
+        )
+        self.session.add(new_member)
+        await self.session.commit()
+        await self.session.refresh(new_member)
+        return new_member
 
     async def login(self, email: str, password: str) -> LoginResponse:
         """Authenticate credentials and generate JWT access token."""

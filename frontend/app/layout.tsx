@@ -15,8 +15,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ApexExpense | AI-Native Expense Management",
-  description: "Next-generation financial operations and expense management platform.",
+  title: "Ledgerly | Treasury, made simple",
+  description: "College Club Expense Management Platform — submit claims, track approvals, and manage club treasury.",
+  icons: {
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icon.png", type: "image/png" },
+    ],
+  },
 };
 
 import { AuthProvider } from "@/context/auth-context";

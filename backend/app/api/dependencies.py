@@ -1,17 +1,14 @@
+import uuid
 from collections.abc import AsyncGenerator
+from typing import NoReturn
 
 from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.storage import StorageOperationError
 from app.db.session import SessionLocal
-from app.services.attachment_service import AttachmentService
-from app.services.budget_service import BudgetService
-from app.services.chapter_service import ChapterService
-from app.services.dashboard_service import DashboardService
-from app.services.event_service import EventService
-from app.services.expense_report_service import ExpenseReportService
-from app.services.expense_service import ExpenseService
 from app.enums.role import Role
 from app.models.member import Member
 from app.services.attachment_service import AttachmentService
@@ -24,7 +21,7 @@ from app.services.expense_report_service import ExpenseReportService
 from app.services.expense_service import ExpenseService
 from app.services.member_service import MemberService
 from app.services.organization_service import OrganizationService
-from fastapi.security import OAuth2PasswordBearer
+from app.services.receipt_ocr_service import ReceiptOCRService, receipt_ocr_service
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
@@ -98,6 +95,11 @@ def get_attachment_service(
     return AttachmentService(session)
 
 
+def get_receipt_ocr_service() -> ReceiptOCRService:
+    """Return the process-wide local OCR adapter and cached model pipeline."""
+    return receipt_ocr_service
+
+
 def get_dashboard_service(
     session: AsyncSession = Depends(get_db),
 ) -> DashboardService:
@@ -143,21 +145,57 @@ def require_role(*allowed_roles: Role):
 
 
 def require_treasurer(
-    current_user: Member = Depends(require_role(Role.TREASURER, Role.ADMIN)),
+    current_user: Member = Depends(require_role(Role.TREASURER, Role.ADMIN, Role.SUPERADMIN)),
 ) -> Member:
-    """Require Treasurer or Admin privileges."""
+    """Require Treasurer, Admin, or Superadmin privileges."""
     return current_user
 
 
 def require_admin(
-    current_user: Member = Depends(require_role(Role.ADMIN)),
+    current_user: Member = Depends(require_role(Role.ADMIN, Role.SUPERADMIN)),
 ) -> Member:
-    """Require Admin privileges."""
+    """Require Admin or Superadmin privileges."""
     return current_user
 
 
-def translate_service_exception(exc: Exception) -> None:
+def require_superadmin(
+    current_user: Member = Depends(require_role(Role.SUPERADMIN)),
+) -> Member:
+    """Require platform-wide Superadmin privileges."""
+    return current_user
+
+
+def get_scope_organization_id(
+    current_user: Member = Depends(get_current_user),
+) -> uuid.UUID | None:
+    """Return the organization a request should be scoped to.
+
+    Superadmins are not confined to a single organization: this returns
+    None for them, which every scoped repository/service method treats as
+    "no organization filter". Every other role is scoped to their own
+    organization_id, exactly as before.
+    """
+    if current_user.role == Role.SUPERADMIN:
+        return None
+    return current_user.organization_id
+
+
+def get_scope_member_id(
+    current_user: Member = Depends(get_current_user),
+) -> uuid.UUID | None:
+    """Restrict member-level expense resources to the signed-in member."""
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    return current_user.id if user_role.upper() == Role.MEMBER.value else None
+
+
+def translate_service_exception(exc: Exception) -> NoReturn:
     """Translate service-layer failures into HTTP exceptions."""
+    if isinstance(exc, StorageOperationError):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
     if isinstance(exc, ValueError):
         detail = str(exc)
         if "invalid" in detail.lower() and ("password" in detail.lower() or "token" in detail.lower() or "credentials" in detail.lower()):

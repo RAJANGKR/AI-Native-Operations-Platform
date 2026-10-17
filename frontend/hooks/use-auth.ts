@@ -12,13 +12,15 @@ export function useAuth() {
   }
 
   const role = context.user?.role?.toUpperCase();
-  const isTreasurerOrAdmin = role === "TREASURER" || role === "ADMIN";
-  const isAdmin = role === "ADMIN";
+  const isSuperadmin = role === "SUPERADMIN";
+  const isTreasurerOrAdmin = role === "TREASURER" || role === "ADMIN" || isSuperadmin;
+  const isAdmin = role === "ADMIN" || isSuperadmin;
 
   return {
     ...context,
     isTreasurerOrAdmin,
     isAdmin,
+    isSuperadmin,
   };
 }
 
@@ -35,7 +37,7 @@ export function useRequireAuth(allowedRoles?: UserRole[]) {
 
       if (allowedRoles && allowedRoles.length > 0 && auth.user) {
         const userRole = auth.user.role;
-        if (!allowedRoles.includes(userRole)) {
+        if (userRole !== "SUPERADMIN" && !allowedRoles.includes(userRole)) {
           router.push("/");
         }
       }

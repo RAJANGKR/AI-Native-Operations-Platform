@@ -2,7 +2,9 @@ import pytest
 from fastapi import status
 from httpx import ASGITransport, AsyncClient
 
+# pyrefly: ignore [missing-import]
 from app.main import app
+# pyrefly: ignore [missing-import]
 from app.schemas.dashboard import DashboardResponse
 
 

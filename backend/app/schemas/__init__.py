@@ -6,6 +6,14 @@ from app.schemas.attachment import (
 )
 from app.schemas.budget import BudgetCreate, BudgetResponse, BudgetUpdate
 from app.schemas.chapter import ChapterCreate, ChapterResponse, ChapterUpdate
+from app.schemas.common import (
+    ErrorResponse,
+    HealthResponse,
+    MessageResponse,
+    PaginationResponse,
+    ValidationErrorDetail,
+    ValidationErrorResponse,
+)
 from app.schemas.dashboard import (
     CategorySpendingItem,
     DashboardKPIs,
@@ -14,14 +22,6 @@ from app.schemas.dashboard import (
     RecentExpenseItem,
     RecentReportItem,
     TopEventItem,
-)
-from app.schemas.common import (
-    ErrorResponse,
-    HealthResponse,
-    MessageResponse,
-    PaginationResponse,
-    ValidationErrorDetail,
-    ValidationErrorResponse,
 )
 from app.schemas.event import EventCreate, EventResponse, EventUpdate
 from app.schemas.expense import (

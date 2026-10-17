@@ -1,9 +1,20 @@
 from datetime import datetime
 from uuid import UUID
+
 from pydantic import EmailStr, Field
 
 from app.enums.role import Role
 from app.schemas.common import APIModel, ORMResponseModel
+
+
+class RegisterRequest(APIModel):
+    """Schema for student self-registration request."""
+
+    full_name: str = Field(min_length=1, description="Student full name")
+    email: EmailStr = Field(description="College email address")
+    department: str = Field(min_length=1, description="Academic department")
+    year: str = Field(min_length=1, description="Academic year")
+    password: str = Field(min_length=6, description="Account password")
 
 
 class LoginRequest(APIModel):
@@ -30,7 +41,13 @@ class CurrentUserResponse(ORMResponseModel):
     email: EmailStr = Field(description="User email address")
     full_name: str = Field(description="User full name")
     role: Role = Field(description="User access role")
-    organization_id: UUID = Field(description="Organization identifier")
+    organization_id: UUID | None = Field(
+        default=None,
+        description="Organization identifier, or null for a platform-level superadmin",
+    )
+    department: str | None = Field(default=None, description="Department")
+    year: str | None = Field(default=None, description="Academic year")
+    approval_status: str | None = Field(default="APPROVED", description="Registration approval status")
     is_active: bool = Field(default=True, description="Account active status")
     created_at: datetime | None = Field(default=None, description="Creation timestamp")
     updated_at: datetime | None = Field(default=None, description="Last update timestamp")

@@ -12,7 +12,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const pathname = usePathname();
 
-  if (pathname === "/login") {
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem("apex_sidebar_collapsed");
+      if (saved !== null) {
+        setCollapsed(JSON.parse(saved));
+      }
+    } catch {
+      // fallback
+    }
+  }, []);
+
+  const handleToggleCollapse = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("apex_sidebar_collapsed", JSON.stringify(next));
+      } catch {
+        // fallback
+      }
+      return next;
+    });
+  };
+
+  const isPublicRoute = pathname === "/login" || pathname === "/register";
+
+  if (isPublicRoute) {
     return <ProtectedRoute>{children}</ProtectedRoute>;
   }
 
@@ -24,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="hidden lg:flex">
             <Sidebar
               collapsed={collapsed}
-              onToggleCollapse={() => setCollapsed(!collapsed)}
+              onToggleCollapse={handleToggleCollapse}
             />
           </div>
 

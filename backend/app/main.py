@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.api.router import api_router
@@ -15,9 +16,17 @@ app = FastAPI(
 )
 logger.info("Application starting...")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 register_exception_handlers(app)
 
-app.include_router(api_router)
+app.include_router(api_router, prefix="/api")
 
 
 @app.on_event("startup")

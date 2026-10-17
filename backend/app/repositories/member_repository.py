@@ -19,9 +19,11 @@ class MemberRepository(BaseRepository[Member]):
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
-    async def get_by_organization(self, organization_id: uuid.UUID) -> list[Member]:
-        """Return all members for an organization."""
-        statement = select(Member).where(Member.organization_id == organization_id)
+    async def get_by_organization(self, organization_id: uuid.UUID | None) -> list[Member]:
+        """Return all members for an organization, or every member if None."""
+        statement = select(Member)
+        if organization_id is not None:
+            statement = statement.where(Member.organization_id == organization_id)
         result = await self.session.execute(statement)
         return list(result.scalars().all())
 

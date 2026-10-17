@@ -11,8 +11,8 @@ from app.enums.expense_report import ExpenseReportStatus
 
 if TYPE_CHECKING:
     from app.models.chapter import Chapter
-    from app.models.expense import Expense
     from app.models.event import Event
+    from app.models.expense import Expense
     from app.models.member import Member
     from app.models.organization import Organization
 
@@ -93,4 +93,5 @@ class ExpenseReport(BaseModel):
     expenses: Mapped[list["Expense"]] = relationship(
         back_populates="report",
         cascade="all, delete-orphan",
+        lazy="selectin",
     )

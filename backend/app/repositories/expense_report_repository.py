@@ -21,12 +21,12 @@ class ExpenseReportRepository(BaseRepository[ExpenseReport]):
         return list(result.scalars().all())
 
     async def get_reports_by_organization(
-        self, organization_id: uuid.UUID
+        self, organization_id: uuid.UUID | None
     ) -> list[ExpenseReport]:
-        """Return all expense reports for an organization."""
-        statement = select(ExpenseReport).where(
-            ExpenseReport.organization_id == organization_id
-        )
+        """Return all expense reports for an organization, or every report if None."""
+        statement = select(ExpenseReport)
+        if organization_id is not None:
+            statement = statement.where(ExpenseReport.organization_id == organization_id)
         result = await self.session.execute(statement)
         return list(result.scalars().all())
 

@@ -42,7 +42,10 @@ coverage/
 # Environment
 # ==========================
 .env.local
-.env.production# ==========================
+.env.production
+/backend/.env.staging.local
+
+# ==========================
 # Python
 # ==========================
 __pycache__/

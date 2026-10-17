@@ -20,8 +20,10 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema."""
     op.add_column('members', sa.Column('hashed_password', sa.String(length=255), nullable=True))
+    op.add_column('chapters', sa.Column('status', sa.String(length=50), nullable=False, server_default='ACTIVE'))
 
 
 def downgrade() -> None:
     """Downgrade schema."""
+    op.drop_column('chapters', 'status')
     op.drop_column('members', 'hashed_password')

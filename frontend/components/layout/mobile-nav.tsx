@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { X, Sparkles, LogOut } from "lucide-react";
+import { X, LogOut } from "lucide-react";
 import { NAVIGATION_ITEMS } from "@/constants/navigation";
 import { cn } from "@/lib/utils";
 
@@ -35,15 +35,15 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
               onClick={onClose}
               className="flex items-center gap-3"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-white font-bold">
-                <Sparkles className="h-4 w-4 text-emerald-400" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg overflow-hidden">
+                <img src="/icon.png" alt="Ledgerly" className="h-9 w-9 object-cover" />
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-bold text-slate-900">
-                  ApexExpense
+                  Ledgerly
                 </span>
                 <span className="text-[10px] text-slate-400 uppercase tracking-widest">
-                  AI Native OS
+                  Treasury, made simple
                 </span>
               </div>
             </Link>

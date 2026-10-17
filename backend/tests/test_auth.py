@@ -164,3 +164,24 @@ async def test_get_current_user_invalid_token():
 
     with pytest.raises(ValueError, match="Invalid authentication token"):
         await service.get_current_user("invalid.jwt.token")
+
+
+@pytest.mark.asyncio
+async def test_authenticate_user_unknown_email_does_not_create_account():
+    """An unrecognized email must be rejected, never silently registered.
+
+    Regression test: authenticate_user() previously auto-created a Member
+    (with a role derived from the email string) on first login with any
+    unseen email, which was an unauthenticated account-creation and
+    privilege-escalation path.
+    """
+    mock_session = AsyncMock()
+    service = AuthService(mock_session)
+
+    service.member_repository.get_user_by_email = AsyncMock(return_value=None)
+
+    with pytest.raises(ValueError, match="Invalid email or password"):
+        await service.authenticate_user("nobody@example.com", "whatever-password")
+
+    mock_session.add.assert_not_called()
+    mock_session.commit.assert_not_called()

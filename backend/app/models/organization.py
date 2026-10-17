@@ -8,8 +8,8 @@ from app.db.base_model import BaseModel
 if TYPE_CHECKING:
     from app.models.budget import Budget
     from app.models.chapter import Chapter
-    from app.models.member import Member
     from app.models.expense_report import ExpenseReport
+    from app.models.member import Member
 
 
 class Organization(BaseModel):

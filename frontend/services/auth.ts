@@ -1,6 +1,6 @@
 import apiClient from "@/services/api";
 
-export type UserRole = "ADMIN" | "TREASURER" | "MEMBER";
+export type UserRole = "SUPERADMIN" | "ADMIN" | "TREASURER" | "MEMBER";
 
 export interface AuthUser {
   id: string;

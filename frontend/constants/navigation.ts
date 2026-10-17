@@ -1,12 +1,17 @@
 import {
   LayoutDashboard,
+  Building,
+  Layers,
   Calendar,
   FileText,
   CreditCard,
-  BarChart3,
+  Users,
+  CheckSquare,
   Settings,
+  ScanLine,
 } from "lucide-react";
 import React from "react";
+import type { UserRole } from "@/services/auth";
 
 export interface NavItem {
   title: string;
@@ -14,6 +19,7 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
   description?: string;
+  roles?: UserRole[];
 }
 
 export const NAVIGATION_ITEMS: NavItem[] = [
@@ -21,31 +27,56 @@ export const NAVIGATION_ITEMS: NavItem[] = [
     title: "Dashboard",
     href: "/",
     icon: LayoutDashboard,
-    description: "Overview of company spend & activities",
+    description: "College club treasury overview & summary",
+  },
+  {
+    title: "Clubs",
+    href: "/clubs",
+    icon: Building,
+    description: "Registered college clubs & societies",
+  },
+  {
+    title: "Chapters",
+    href: "/chapters",
+    icon: Layers,
+    description: "Club chapters & technical wings",
   },
   {
     title: "Events",
     href: "/events",
     icon: Calendar,
-    description: "Event-based budget allocations & trips",
+    description: "Chapter events & budget allocations",
   },
   {
     title: "Expense Reports",
     href: "/expense-reports",
     icon: FileText,
-    description: "Submitted reports and approval queues",
+    description: "Submitted expense batches and vouchers",
   },
   {
-    title: "Expenses",
+    title: "My Expenses",
     href: "/expenses",
     icon: CreditCard,
-    description: "Individual transaction logs & receipts",
+    description: "Student transaction logs & receipts",
   },
   {
-    title: "Analytics",
-    href: "/analytics",
-    icon: BarChart3,
-    description: "Financial metrics & spend analysis",
+    title: "Scan Receipt",
+    href: "/scan-receipt",
+    icon: ScanLine,
+    description: "Create an expense from a receipt image",
+  },
+  {
+    title: "Members",
+    href: "/members",
+    icon: Users,
+    description: "Student roster & club members",
+  },
+  {
+    title: "Approvals",
+    href: "/approvals",
+    icon: CheckSquare,
+    description: "Treasurer pending registration & report reviews",
+    roles: ["ADMIN", "TREASURER", "SUPERADMIN"],
   },
   {
     title: "Settings",

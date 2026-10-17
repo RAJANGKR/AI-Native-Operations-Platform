@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.expense import Expense
+from app.models.expense_report import ExpenseReport
 from app.repositories.base import BaseRepository
 
 
@@ -13,6 +14,20 @@ class ExpenseRepository(BaseRepository[Expense]):
 
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session=session, model=Expense)
+
+    async def get_by_organization(
+        self, organization_id: uuid.UUID | None, member_id: uuid.UUID | None = None
+    ) -> list[Expense]:
+        """Return expenses whose report belongs to an organization (or every
+        expense if None), optionally further restricted to reports owned by
+        a specific member."""
+        statement = select(Expense).join(ExpenseReport, Expense.report_id == ExpenseReport.id)
+        if organization_id is not None:
+            statement = statement.where(ExpenseReport.organization_id == organization_id)
+        if member_id is not None:
+            statement = statement.where(ExpenseReport.member_id == member_id)
+        result = await self.session.execute(statement)
+        return list(result.scalars().all())
 
     async def get_by_report(self, report_id: uuid.UUID) -> list[Expense]:
         """Return all expenses for an expense report."""

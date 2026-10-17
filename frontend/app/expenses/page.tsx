@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Plus, CreditCard, Filter, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { TableSkeleton } from "@/components/ui/loading-skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function ExpensesPage() {
+  const router = useRouter();
   const [loadingPreview, setLoadingPreview] = React.useState(false);
 
   return (
@@ -31,9 +33,9 @@ export default function ExpensesPage() {
               <Download className="h-4 w-4" />
               Export CSV
             </Button>
-            <Button size="sm" className="gap-1.5">
+            <Button size="sm" className="gap-1.5" onClick={() => router.push("/scan-receipt")}>
               <Plus className="h-4 w-4" />
-              Add Expense
+              Scan Receipt
             </Button>
           </>
         }
@@ -59,8 +61,8 @@ export default function ExpensesPage() {
               title="No Expenses Logged"
               description="No individual transaction logs recorded yet. Expenses scanned via receipt parsing or card sync will list here."
               action={
-                <Button size="sm">
-                  Add Single Expense
+                <Button size="sm" onClick={() => router.push("/scan-receipt")}>
+                  Scan Receipt
                 </Button>
               }
             />

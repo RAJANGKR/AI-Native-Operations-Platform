@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from pydantic import Field, model_validator
@@ -11,7 +12,17 @@ from app.schemas.common import APIModel, DescriptionStr, NameStr, TimestampedRes
 class EventCreate(APIModel):
     """Schema for creating an event."""
 
-    chapter_id: UUID = Field(description="Chapter identifier")
+    chapter_id: UUID | None = Field(
+        default=None,
+        description="Chapter identifier. Omit for a club-wide event that "
+        "belongs to the organization directly (e.g. an annual flagship event).",
+    )
+    organization_id: UUID | None = Field(
+        default=None,
+        description="Organization identifier. Only used for a club-wide "
+        "event (no chapter_id) created by a superadmin; every other caller "
+        "has this inferred automatically.",
+    )
     name: NameStr = Field(default="Untitled Event")
     title: str | None = Field(default=None, description="Event title alias for name")
     description: DescriptionStr | None = Field(
@@ -42,7 +53,7 @@ class EventCreate(APIModel):
 
     @model_validator(mode="before")
     @classmethod
-    def populate_name_from_title(cls, data: any) -> any:
+    def populate_name_from_title(cls, data: Any) -> Any:
         if isinstance(data, dict):
             if "title" in data and data["title"] and ("name" not in data or not data["name"]):
                 data["name"] = data["title"]
@@ -82,7 +93,7 @@ class EventUpdate(APIModel):
 
     @model_validator(mode="before")
     @classmethod
-    def populate_name_from_title(cls, data: any) -> any:
+    def populate_name_from_title(cls, data: Any) -> Any:
         if isinstance(data, dict):
             if "title" in data and data["title"] and ("name" not in data or not data["name"]):
                 data["name"] = data["title"]
@@ -92,7 +103,11 @@ class EventUpdate(APIModel):
 class EventResponse(TimestampedResponse):
     """Schema returned for event resources."""
 
-    chapter_id: UUID = Field(description="Chapter identifier")
+    organization_id: UUID = Field(description="Organization identifier")
+    chapter_id: UUID | None = Field(
+        default=None,
+        description="Chapter identifier, or null for a club-wide event",
+    )
     name: str = Field(description="Event name")
     title: str = Field(default="", description="Event title")
     description: str | None = Field(
@@ -109,7 +124,7 @@ class EventResponse(TimestampedResponse):
     @classmethod
     def populate_title(cls, data: any) -> any:
         if hasattr(data, "name") and not getattr(data, "title", None):
-            setattr(data, "title", getattr(data, "name"))
+            data.title = data.name
         elif isinstance(data, dict):
             if "name" in data and ("title" not in data or not data["title"]):
                 data["title"] = data["name"]

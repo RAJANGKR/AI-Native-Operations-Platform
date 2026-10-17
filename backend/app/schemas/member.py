@@ -63,8 +63,14 @@ class MemberUpdate(APIModel):
 class MemberResponse(TimestampedResponse):
     """Schema returned for member resources."""
 
-    organization_id: UUID = Field(description="Organization identifier")
+    organization_id: UUID | None = Field(
+        default=None,
+        description="Organization identifier, or null for a platform-level superadmin",
+    )
     email: EmailStr = Field(description="Unique email address for the member")
     full_name: str = Field(description="Full name of the member")
     role: str = Field(description="Role assigned to the member")
+    department: str | None = Field(default=None, description="Academic department")
+    year: str | None = Field(default=None, description="Academic year")
+    approval_status: str | None = Field(default="APPROVED", description="Approval status")
     is_active: bool = Field(description="Whether the member is active")

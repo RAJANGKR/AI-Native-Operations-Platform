@@ -20,8 +20,10 @@ class BudgetRepository(BaseRepository[Budget]):
         result = await self.session.execute(statement)
         return list(result.scalars().all())
 
-    async def get_by_organization(self, organization_id: uuid.UUID) -> list[Budget]:
-        """Return all budgets for an organization."""
-        statement = select(Budget).where(Budget.organization_id == organization_id)
+    async def get_by_organization(self, organization_id: uuid.UUID | None) -> list[Budget]:
+        """Return all budgets for an organization, or every budget if None."""
+        statement = select(Budget)
+        if organization_id is not None:
+            statement = statement.where(Budget.organization_id == organization_id)
         result = await self.session.execute(statement)
         return list(result.scalars().all())
