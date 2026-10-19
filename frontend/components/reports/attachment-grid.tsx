@@ -8,55 +8,60 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { AttachmentUploadZone } from "@/components/attachments/attachment-upload-zone";
 import { AttachmentPreviewModal } from "@/components/attachments/attachment-preview-modal";
 import { useDeleteAttachment, useDownloadAttachment } from "@/hooks/use-attachment-mutations";
-import { useExpenseAttachments } from "@/hooks/use-attachments";
 import { AttachmentResponseItem } from "@/services/attachment";
+import { useQueries } from "@tanstack/react-query";
+import { getExpenseAttachments } from "@/services/attachment";
 import { toast } from "@/components/ui/toast";
 
 interface AttachmentGridProps {
-  attachments?: any[];
-  expenseId?: string;
+  expenseIds: string[];
   reportId?: string;
 }
 
 export function AttachmentGrid({
-  attachments: initialAttachments = [],
-  expenseId = "00000000-0000-0000-0000-000000000005",
+  expenseIds,
   reportId,
 }: AttachmentGridProps) {
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [confirmDeleteFile, setConfirmDeleteFile] = React.useState<AttachmentResponseItem | any | null>(null);
-  const [previewFile, setPreviewFile] = React.useState<any | null>(null);
+  const [previewFile, setPreviewFile] = React.useState<(AttachmentResponseItem & { previewUrl?: string }) | null>(null);
+  const [previewLoading, setPreviewLoading] = React.useState(false);
+  const [previewError, setPreviewError] = React.useState("");
 
-  // Fetch real attachments from FastAPI backend
-  const { data: remoteAttachments, refetch } = useExpenseAttachments(expenseId);
+  const attachmentQueries = useQueries({
+    queries: expenseIds.map((id) => ({
+      queryKey: ["attachments", id],
+      queryFn: () => getExpenseAttachments(id),
+      enabled: Boolean(id),
+      staleTime: 5 * 60 * 1000,
+      refetchInterval: 5 * 60 * 1000,
+    })),
+  });
   const deleteMutation = useDeleteAttachment();
   const downloadMutation = useDownloadAttachment();
+  const attachmentsLoading = attachmentQueries.some((query) => query.isLoading);
+  const attachmentsError = attachmentQueries.find((query) => query.isError)?.error;
+  const refetch = () => Promise.all(attachmentQueries.map((query) => query.refetch()));
+  const itemsList: AttachmentResponseItem[] = attachmentQueries.flatMap((query) => query.data ?? []);
+  const [uploadExpenseId, setUploadExpenseId] = React.useState(expenseIds[0] || "");
 
-  // Combine initial fallback/mock attachments with real backend attachments
-  const itemsList: AttachmentResponseItem[] = React.useMemo(() => {
-    if (remoteAttachments && remoteAttachments.length > 0) {
-      return remoteAttachments;
-    }
-    return initialAttachments.map((item: any) => ({
-      id: item.id || `att-${Math.random()}`,
-      expense_id: expenseId,
-      type: item.type || "RECEIPT",
-      attachment_type: item.attachment_type || item.type || "RECEIPT",
-      storage_path: item.storage_path || `expense-attachments/mock/${item.fileName || "receipt.pdf"}`,
-      original_filename: item.fileName || item.original_filename || "receipt.pdf",
-      mime_type: item.mime_type || "application/pdf",
-      size_bytes: item.size_bytes || 1024 * 1024,
-      sha256_hash: item.sha256_hash || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      ocr_status: item.ocr_status || "PENDING",
-      created_at: item.created_at || new Date().toISOString(),
-    }));
-  }, [remoteAttachments, initialAttachments, expenseId]);
+  React.useEffect(() => {
+    if (!expenseIds.includes(uploadExpenseId)) setUploadExpenseId(expenseIds[0] || "");
+  }, [expenseIds, uploadExpenseId]);
 
   const handleDownload = async (attachment: AttachmentResponseItem) => {
+    // Open synchronously during the click gesture so browsers do not block
+    // the tab after the authenticated signed-URL request resolves.
+    const downloadWindow = window.open("about:blank", "_blank");
+    if (downloadWindow) downloadWindow.opener = null;
+    if (!downloadWindow) {
+      toast({ type: "error", title: "Download Blocked", description: "Allow pop-ups for this site to download attachments." });
+      return;
+    }
     try {
       const res = await downloadMutation.mutateAsync(attachment.id);
       if (res?.download_url) {
-        window.open(res.download_url, "_blank");
+        downloadWindow.location.replace(res.download_url);
         toast({
           type: "success",
           title: "Download Started",
@@ -64,11 +69,26 @@ export function AttachmentGrid({
         });
       }
     } catch (err: any) {
+      downloadWindow.close();
       toast({
         type: "error",
         title: "Download Failed",
         description: err?.response?.data?.detail || err.message || "Could not generate download link.",
       });
+    }
+  };
+
+  const handlePreview = async (attachment: AttachmentResponseItem) => {
+    setPreviewFile(attachment);
+    setPreviewError("");
+    setPreviewLoading(true);
+    try {
+      const res = await downloadMutation.mutateAsync(attachment.id);
+      setPreviewFile({ ...attachment, previewUrl: res.download_url });
+    } catch (err: any) {
+      setPreviewError(err?.response?.data?.detail || err.message || "Could not create an authorized preview link.");
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
@@ -78,7 +98,7 @@ export function AttachmentGrid({
     try {
       await deleteMutation.mutateAsync({
         attachmentId: confirmDeleteFile.id,
-        expenseId,
+        expenseId: confirmDeleteFile.expense_id,
         reportId,
       });
 
@@ -132,11 +152,25 @@ export function AttachmentGrid({
 
         <CardContent className="space-y-6">
           {/* 1. Drag & Drop Upload Zone */}
-          <AttachmentUploadZone
-            expenseId={expenseId}
-            reportId={reportId}
-            onUploadSuccess={() => refetch()}
-          />
+          {expenseIds.length > 0 ? (
+            <div className="space-y-3">
+              {expenseIds.length > 1 && (
+                <label className="block text-xs font-semibold text-slate-700">
+                  Attach to expense
+                  <select value={uploadExpenseId} onChange={(event) => setUploadExpenseId(event.target.value)} className="mt-1 h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm">
+                    {expenseIds.map((id, index) => <option key={id} value={id}>Expense {index + 1} · {id.slice(0, 8)}</option>)}
+                  </select>
+                </label>
+              )}
+              <AttachmentUploadZone
+                expenseId={uploadExpenseId}
+                reportId={reportId}
+                onUploadSuccess={() => void refetch()}
+              />
+            </div>
+          ) : (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">Create an expense in this report before uploading its receipt.</p>
+          )}
 
           {/* 2. Attachment Cards Grid */}
           <div>
@@ -144,7 +178,11 @@ export function AttachmentGrid({
               Attached Documents ({itemsList.length})
             </h4>
 
-            {itemsList.length === 0 ? (
+            {attachmentsLoading ? (
+              <p className="rounded-xl border border-slate-200 py-8 text-center text-xs text-slate-500">Loading attachments…</p>
+            ) : attachmentsError ? (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800">Could not load attachments. Check your connection and try again.</div>
+            ) : itemsList.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 py-8 text-center bg-slate-50/30">
                 <p className="text-xs font-medium text-slate-500">No attachments linked to this expense line item.</p>
               </div>
@@ -215,7 +253,7 @@ export function AttachmentGrid({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setPreviewFile(file)}
+                          onClick={() => void handlePreview(file)}
                           className="h-7 px-2 text-[11px] gap-1 bg-white hover:bg-slate-100 border-slate-200"
                         >
                           <Eye className="h-3 w-3" />
@@ -263,14 +301,17 @@ export function AttachmentGrid({
           previewFile
             ? {
                 id: previewFile.id,
-                file_name: previewFile.original_filename || previewFile.fileName || "receipt.pdf",
-                file_path: previewFile.storage_path,
+                file_name: previewFile.original_filename || "receipt.pdf",
+                preview_url: previewFile.previewUrl,
                 mime_type: previewFile.mime_type,
                 file_size_bytes: previewFile.size_bytes,
               }
             : null
         }
-        onDelete={(id) => setConfirmDeleteFile(previewFile)}
+        onDelete={() => setConfirmDeleteFile(previewFile)}
+        onDownload={() => previewFile && void handleDownload(previewFile)}
+        isPreviewLoading={previewLoading}
+        previewError={previewError}
       />
 
       {/* Confirmation Modal Dialog */}

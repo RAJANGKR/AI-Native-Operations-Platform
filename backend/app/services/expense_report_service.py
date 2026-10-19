@@ -45,13 +45,19 @@ class ExpenseReportService(BaseService):
         )
 
     async def get_report(
-        self, report_id: uuid.UUID, organization_id: uuid.UUID | None
+        self,
+        report_id: uuid.UUID,
+        organization_id: uuid.UUID | None,
+        member_id: uuid.UUID | None = None,
     ) -> ExpenseReport | None:
-        """Return an expense report by id, scoped to the caller's organization."""
+        """Return a report scoped to the caller's organization and member."""
         report = await self.expense_report_repository.get_by_id(report_id)
         if report is None:
             return None
-        if organization_id is not None and report.organization_id != organization_id:
+        if (
+            (organization_id is not None and report.organization_id != organization_id)
+            or (member_id is not None and report.member_id != member_id)
+        ):
             return None
         return report
 
@@ -62,10 +68,19 @@ class ExpenseReportService(BaseService):
         return await self.expense_report_repository.get_reports_by_organization(organization_id)
 
     async def update_report(
-        self, report_id: uuid.UUID, organization_id: uuid.UUID | None, **data: Any
+        self,
+        report_id: uuid.UUID,
+        organization_id: uuid.UUID | None,
+        member_id: uuid.UUID | None = None,
+        **data: Any,
     ) -> ExpenseReport:
         """Update an existing expense report, scoped to the caller's organization."""
-        report = await self._get_scoped_report(report_id, organization_id)
+        report = await self._get_scoped_report(report_id, organization_id, member_id)
+        if member_id is not None:
+            if report.status != ExpenseReportStatus.DRAFT:
+                raise RuntimeError("Members can only edit draft expense reports")
+            if "status" in data:
+                raise ValueError("Members must use the report submission endpoint to change report status")
 
         if "event_id" in data and "chapter_id" not in data:
             await self._resolve_chapter_for_club_wide_event(data)
@@ -83,18 +98,26 @@ class ExpenseReportService(BaseService):
         )
 
     async def delete_report(
-        self, report_id: uuid.UUID, organization_id: uuid.UUID | None
+        self,
+        report_id: uuid.UUID,
+        organization_id: uuid.UUID | None,
+        member_id: uuid.UUID | None = None,
     ) -> None:
         """Delete an expense report by id, scoped to the caller's organization."""
-        report = await self._get_scoped_report(report_id, organization_id)
+        report = await self._get_scoped_report(report_id, organization_id, member_id)
+        if member_id is not None and report.status != ExpenseReportStatus.DRAFT:
+            raise RuntimeError("Members can only delete draft expense reports")
 
         await self._run_in_transaction(lambda: self._delete_report_instance(report))
 
     async def submit_report(
-        self, report_id: uuid.UUID, organization_id: uuid.UUID | None
+        self,
+        report_id: uuid.UUID,
+        organization_id: uuid.UUID | None,
+        member_id: uuid.UUID | None = None,
     ) -> ExpenseReport:
         """Submit a draft expense report that contains at least one expense."""
-        report = await self._get_scoped_report(report_id, organization_id)
+        report = await self._get_scoped_report(report_id, organization_id, member_id)
 
         if report.status != ExpenseReportStatus.DRAFT:
             raise RuntimeError("Only draft reports can be submitted")
@@ -118,13 +141,19 @@ class ExpenseReportService(BaseService):
         await self.expense_report_repository.delete(report)
 
     async def _get_scoped_report(
-        self, report_id: uuid.UUID, organization_id: uuid.UUID | None
+        self,
+        report_id: uuid.UUID,
+        organization_id: uuid.UUID | None,
+        member_id: uuid.UUID | None = None,
     ) -> ExpenseReport:
         """Fetch a report and verify it belongs to the given organization."""
         report = await self.expense_report_repository.get_by_id(report_id)
         if report is None:
             raise ValueError("Expense report not found")
-        if organization_id is not None and report.organization_id != organization_id:
+        if (
+            (organization_id is not None and report.organization_id != organization_id)
+            or (member_id is not None and report.member_id != member_id)
+        ):
             raise ValueError("Expense report not found")
         return report
 

@@ -20,6 +20,17 @@ class AttachmentRepository(BaseRepository[Attachment]):
         result = await self.session.execute(statement)
         return list(result.scalars().all())
 
+    async def get_by_expense_and_sha256(
+        self, expense_id: uuid.UUID, sha256_hash: str
+    ) -> Attachment | None:
+        """Find an existing identical upload so a client retry is idempotent."""
+        statement = select(Attachment).where(
+            Attachment.expense_id == expense_id,
+            Attachment.sha256_hash == sha256_hash,
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().first()
+
     async def get_by_type(self, attachment_type: AttachmentType) -> list[Attachment]:
         """Return all attachments of a given type."""
         statement = select(Attachment).where(Attachment.type == attachment_type)

@@ -64,3 +64,55 @@ async def test_member_expense_creation_requires_report_owned_by_member():
         )
 
     service.expense_repository.create.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_member_cannot_set_expense_approval_status():
+    service = ExpenseService(AsyncMock())
+    organization_id = uuid.uuid4()
+    member_id = uuid.uuid4()
+    report_id = uuid.uuid4()
+    expense = MagicMock(report_id=report_id)
+    service.expense_repository.get_by_id = AsyncMock(return_value=expense)
+    service.expense_report_repository.get_by_id = AsyncMock(
+        return_value=MagicMock(
+            organization_id=organization_id,
+            member_id=member_id,
+            status=ExpenseReportStatus.DRAFT,
+        )
+    )
+    service.expense_repository.update = AsyncMock()
+
+    with pytest.raises(ValueError, match="approval status"):
+        await service.update_expense(
+            uuid.uuid4(),
+            organization_id,
+            member_id,
+            status="approved",
+        )
+
+    service.expense_repository.update.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_member_cannot_modify_expense_after_report_submission():
+    service = ExpenseService(AsyncMock())
+    organization_id = uuid.uuid4()
+    member_id = uuid.uuid4()
+    expense = MagicMock(report_id=uuid.uuid4())
+    service.expense_repository.get_by_id = AsyncMock(return_value=expense)
+    service.expense_report_repository.get_by_id = AsyncMock(
+        return_value=MagicMock(
+            organization_id=organization_id,
+            member_id=member_id,
+            status=ExpenseReportStatus.SUBMITTED,
+        )
+    )
+    service.expense_repository.update = AsyncMock()
+
+    with pytest.raises(RuntimeError, match="draft reports"):
+        await service.update_expense(
+            uuid.uuid4(), organization_id, member_id, notes="changed after submission"
+        )
+
+    service.expense_repository.update.assert_not_awaited()

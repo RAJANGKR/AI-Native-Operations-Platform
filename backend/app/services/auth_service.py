@@ -46,13 +46,10 @@ class AuthService(BaseService):
         if getattr(user, "approval_status", "APPROVED") == "REJECTED":
             raise ValueError("Registration rejected by Treasurer.")
 
-        # If hashed_password is set, verify against plain password
-        if user.hashed_password:
-            if not verify_password(password, user.hashed_password):
-                raise ValueError("Invalid email or password")
-        else:
-            user.hashed_password = hash_password(password)
-            await self.session.commit()
+        # A missing password hash is not a first-login invitation: accepting
+        # any password here would let anyone claim a legacy/passwordless row.
+        if not user.hashed_password or not verify_password(password, user.hashed_password):
+            raise ValueError("Invalid email or password")
 
         return user
 
@@ -127,6 +124,9 @@ class AuthService(BaseService):
             payload = decode_access_token(token)
         except Exception as exc:
             raise ValueError(f"Invalid authentication token: {exc}")
+
+        if payload.get("type") != "access":
+            raise ValueError("Invalid authentication token")
 
         user_id_str = payload.get("user_id")
         email_str = payload.get("sub")

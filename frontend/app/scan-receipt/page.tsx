@@ -18,9 +18,29 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 function errorMessage(error: unknown): string {
-  const value = error as { response?: { data?: { detail?: unknown } }; message?: string };
-  const detail = value?.response?.data?.detail;
+  const value = error as {
+    response?: { data?: { detail?: unknown; message?: unknown; errors?: unknown } };
+    message?: string;
+  };
+  const response = value?.response?.data;
+  const detail = response?.detail;
   if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (item && typeof item === "object" && "msg" in item) {
+          return String(item.msg);
+        }
+        return typeof item === "string" ? item : "";
+      })
+      .filter(Boolean);
+    if (messages.length) return messages.join("; ");
+  }
+  // The backend's HTTP exception handler returns { success, message, data, errors }.
+  if (typeof response?.message === "string") return response.message;
+  if (Array.isArray(response?.errors) && response.errors.length) {
+    return response.errors.map(String).join("; ");
+  }
   return value?.message || "The request could not be completed.";
 }
 
@@ -35,7 +55,7 @@ export default function ScanReceiptPage() {
   const [ocr, setOcr] = React.useState<ReceiptOCRResponse | null>(null);
   const [merchant, setMerchant] = React.useState("");
   const [amount, setAmount] = React.useState("");
-  const [expenseDate, setExpenseDate] = React.useState(new Date().toISOString().slice(0, 10));
+  const [expenseDate, setExpenseDate] = React.useState("");
   const [category, setCategory] = React.useState("other");
   const [notes, setNotes] = React.useState("");
   const [scanError, setScanError] = React.useState("");
@@ -64,6 +84,7 @@ export default function ScanReceiptPage() {
     setFile(selected);
     setMerchant("");
     setAmount("");
+    setExpenseDate("");
     if (!ACCEPTED_TYPES.includes(selected.type)) {
       setScanError("Choose a PNG, JPG, or WEBP image.");
       return;
@@ -78,7 +99,7 @@ export default function ScanReceiptPage() {
       setOcr(result);
       setMerchant(result.candidate_fields.merchant || "");
       setAmount(result.candidate_fields.amount || "");
-      setExpenseDate(result.candidate_fields.expense_date || new Date().toISOString().slice(0, 10));
+      setExpenseDate(result.candidate_fields.expense_date || "");
     } catch (error) {
       setScanError(errorMessage(error));
     } finally {

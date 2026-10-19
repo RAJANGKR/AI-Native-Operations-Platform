@@ -1,20 +1,22 @@
 import io
 import uuid
-import pytest
-from PIL import Image
-from fastapi import HTTPException, UploadFile
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.enums.attachment import AttachmentType, OCRStatus
-from app.core.storage import StorageOperationError, SupabaseStorageClient
+import pytest
+from fastapi import HTTPException, UploadFile
+from PIL import Image
+
 from app.api.dependencies import translate_service_exception
+from app.core.storage import StorageOperationError, SupabaseStorageClient
+from app.enums.attachment import AttachmentType, OCRStatus
+from app.enums.expense_report import ExpenseReportStatus
 from app.main import app
 from app.models.attachment import Attachment
 from app.services.attachment_service import (
-    AttachmentService,
     ALLOWED_EXTENSIONS,
-    REJECTED_EXTENSIONS,
     MAX_FILE_SIZE_BYTES,
+    REJECTED_EXTENSIONS,
+    AttachmentService,
 )
 
 
@@ -56,6 +58,7 @@ async def test_upload_attachment_validation_rejected_extension():
 
     service.expense_repository.get_by_id = AsyncMock(return_value=mock_expense)
     service.expense_report_repository.get_by_id = AsyncMock(return_value=mock_report)
+    service.attachment_repository.get_by_expense_and_sha256 = AsyncMock(return_value=None)
 
     file_content = b"fake binary data"
     upload_file = UploadFile(
@@ -190,6 +193,7 @@ async def test_upload_attachment_accepts_supported_valid_formats(filename, conte
             event_id=None,
         )
     )
+    service.attachment_repository.get_by_expense_and_sha256 = AsyncMock(return_value=None)
     service.attachment_repository.create = AsyncMock(return_value=MagicMock())
     async def mock_tx(fn):
         return await fn()
@@ -265,6 +269,26 @@ async def test_member_cannot_get_download_url_for_another_members_attachment():
 
 
 @pytest.mark.asyncio
+async def test_member_cannot_delete_attachment_from_submitted_report():
+    service = AttachmentService(AsyncMock())
+    member_id = uuid.uuid4()
+    attachment = MagicMock(expense_id=uuid.uuid4(), storage_path="private/path")
+    service.get_attachment = AsyncMock(return_value=attachment)
+    service.expense_repository.get_by_id = AsyncMock(return_value=MagicMock(report_id=uuid.uuid4()))
+    service.expense_report_repository.get_by_id = AsyncMock(
+        return_value=MagicMock(member_id=member_id, status=ExpenseReportStatus.SUBMITTED)
+    )
+    service.attachment_repository.delete = AsyncMock()
+
+    with patch("app.services.attachment_service.storage_client.delete_file", new_callable=AsyncMock) as delete_file:
+        with pytest.raises(RuntimeError, match="draft expense reports"):
+            await service.delete_attachment(uuid.uuid4(), None, member_id)
+
+    delete_file.assert_not_awaited()
+    service.attachment_repository.delete.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_upload_attachment_success_and_sha256():
     """Verify sha256 calculation and successful attachment creation."""
     mock_session = AsyncMock()
@@ -285,6 +309,7 @@ async def test_upload_attachment_success_and_sha256():
 
     service.expense_repository.get_by_id = AsyncMock(return_value=mock_expense)
     service.expense_report_repository.get_by_id = AsyncMock(return_value=mock_report)
+    service.attachment_repository.get_by_expense_and_sha256 = AsyncMock(return_value=None)
 
     mock_attachment = Attachment(
         id=uuid.uuid4(),
@@ -318,6 +343,38 @@ async def test_upload_attachment_success_and_sha256():
         mock_upload.assert_called_once()
 
 
+@pytest.mark.asyncio
+async def test_retrying_identical_receipt_returns_existing_attachment_without_storage_write():
+    service = AttachmentService(AsyncMock())
+    expense_id = uuid.uuid4()
+    organization_id = uuid.uuid4()
+    receipt = _valid_pdf_bytes()
+    import hashlib
+
+    existing = MagicMock(id=uuid.uuid4(), expense_id=expense_id)
+    service.expense_repository.get_by_id = AsyncMock(return_value=MagicMock(report_id=uuid.uuid4()))
+    service.expense_report_repository.get_by_id = AsyncMock(
+        return_value=MagicMock(organization_id=organization_id)
+    )
+    service.attachment_repository.get_by_expense_and_sha256 = AsyncMock(return_value=existing)
+    service.attachment_repository.create = AsyncMock()
+    upload_file = UploadFile(
+        filename="receipt.pdf",
+        file=io.BytesIO(receipt),
+        headers={"content-type": "application/pdf"},
+    )
+
+    with patch("app.services.attachment_service.storage_client.upload_file", new_callable=AsyncMock) as upload:
+        result = await service.upload_attachment(expense_id, upload_file, organization_id)
+
+    assert result is existing
+    service.attachment_repository.get_by_expense_and_sha256.assert_awaited_once_with(
+        expense_id, hashlib.sha256(receipt).hexdigest()
+    )
+    service.attachment_repository.create.assert_not_awaited()
+    upload.assert_not_awaited()
+
+
 def _service_for_upload(expense_id, report_id, organization_id):
     service = AttachmentService(AsyncMock())
     service.expense_repository.get_by_id = AsyncMock(return_value=MagicMock(report_id=report_id))
@@ -330,6 +387,7 @@ def _service_for_upload(expense_id, report_id, organization_id):
         )
     )
     service.attachment_repository.create = AsyncMock(return_value=MagicMock())
+    service.attachment_repository.get_by_expense_and_sha256 = AsyncMock(return_value=None)
     async def mock_tx(fn):
         return await fn()
     service._run_in_transaction = mock_tx

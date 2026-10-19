@@ -35,7 +35,17 @@ class ExpenseService(BaseService):
         if report.status != ExpenseReportStatus.DRAFT:
             raise RuntimeError("Expenses can only be added to draft reports")
 
-        return await self._run_in_transaction(lambda: self.expense_repository.create(**data))
+        async def create_and_load_response_data() -> Expense:
+            created = await self.expense_repository.create(**data)
+            # Pydantic response serialization is synchronous. Load the
+            # relationship while still inside the async session's greenlet so
+            # serializing `attachments` after commit cannot trigger async IO.
+            loaded = await self.expense_repository.get_by_id(created.id)
+            if loaded is None:
+                raise RuntimeError("Created expense could not be reloaded")
+            return loaded
+
+        return await self._run_in_transaction(create_and_load_response_data)
 
     async def get_expense(
         self,
@@ -67,6 +77,12 @@ class ExpenseService(BaseService):
     ) -> Expense:
         """Update an existing expense, scoped to the caller's organization."""
         expense = await self._get_scoped_expense(expense_id, organization_id, member_id)
+        if member_id is not None:
+            report = await self._get_scoped_report(expense.report_id, organization_id, member_id)
+            if report.status != ExpenseReportStatus.DRAFT:
+                raise RuntimeError("Members can only edit expenses in draft reports")
+            if "status" in data:
+                raise ValueError("Members cannot change expense approval status")
 
         return await self._run_in_transaction(
             lambda: self.expense_repository.update(expense, **data)
@@ -80,6 +96,10 @@ class ExpenseService(BaseService):
     ) -> None:
         """Delete an expense by id, scoped to the caller's organization."""
         expense = await self._get_scoped_expense(expense_id, organization_id, member_id)
+        if member_id is not None:
+            report = await self._get_scoped_report(expense.report_id, organization_id, member_id)
+            if report.status != ExpenseReportStatus.DRAFT:
+                raise RuntimeError("Members can only delete expenses in draft reports")
 
         await self._run_in_transaction(lambda: self._delete_expense_instance(expense))
 

@@ -29,6 +29,19 @@ uv run --locked --extra ocr --env-file .env.staging.local uvicorn app.main:app -
 
 The endpoint returns recognized text and line confidence values, plus unverified merchant/date/amount candidates. It returns `400` for invalid images, `401` without authentication, and `503` if the local engine or model weights are unavailable. The frontend review screen requires explicit confirmation before creating an expense and then uses the existing private attachment upload flow.
 
+### First staging administrator
+
+The staging database starts without a member who can approve registrations. After the staging schema is at revision `9c72a4e1f6b3`, use the one-time interactive bootstrap command below. It refuses non-staging settings, requires the Supabase URL and pooler username to identify the approved staging project, asks you to type the project reference, requires an empty `members` table, and prompts for the account details and password without echoing the password. It creates one approved `SUPERADMIN` with no organization. The command is not an API route and will refuse to run once any member exists.
+
+From `backend/`, first clear inherited configuration as in the staging launch instructions, then run:
+
+```bash
+unset APP_NAME APP_VERSION APP_ENV DEBUG DATABASE_URL SUPABASE_URL SUPABASE_KEY JWT_SECRET_KEY JWT_ALGORITHM ACCESS_TOKEN_EXPIRE_MINUTES CORS_ORIGINS UV_ENV_FILE UV_NO_ENV_FILE
+uv run --locked --env-file .env.staging.local python -m app.cli.bootstrap_staging_admin
+```
+
+Run this only when you have verified the staging file is loaded and are authorized to create its first administrator. The command performs a database write; it has not been run as part of local tests.
+
 Demo: sign in, ensure a draft expense report exists, open **Scan Receipt**, choose a permitted receipt image, review/correct each suggested value, and select **Confirm & save expense**. The created expense and receipt appear in that report. To exercise graceful OCR failure, use a blank or unreadable image; the page shows the error and still permits manual entry. Supply a real receipt you are permitted to use for recognition-quality evaluation; no receipt sample is bundled here.
 
 The English and Devanagari recognizers are pretrained and have not been fine-tuned for receipts. The adapter runs both locally and aligns their line detections by image position, selecting Devanagari text where that script is detected; this increases CPU work. Devanagari recognition covers Hindi and numerals; Marathi words and code-mixed text still require manual review. The backend currently supports PNG, JPEG, and WEBP for OCR; PDF and HEIC remain supported only by the separate existing attachment workflow. If PaddleOCR/ONNX Runtime or model initialization/download is unavailable, the OCR endpoint returns a setup error and the review screen still allows manual field entry. No database migration is required.

@@ -6,9 +6,11 @@ from fastapi import APIRouter, Depends, status
 from app.api.dependencies import (
     get_current_user,
     get_expense_report_service,
+    get_scope_member_id,
     get_scope_organization_id,
     translate_service_exception,
 )
+from app.enums.role import Role
 from app.models.member import Member
 from app.schemas.common import MessageResponse
 from app.schemas.expense_report import (
@@ -16,6 +18,7 @@ from app.schemas.expense_report import (
     ExpenseReportResponse,
     ExpenseReportUpdate,
 )
+
 # pyrefly: ignore [missing-import]
 from app.services.expense_report_service import ExpenseReportService
 
@@ -58,7 +61,12 @@ async def create_report(
 ) -> ExpenseReportResponse:
     try:
         data = payload.model_dump()
-        data["organization_id"] = current_user.organization_id
+        # Platform superadmins are intentionally not attached to one
+        # organization. They may choose the target organization in the form;
+        # the service still verifies that the chapter/event belong to it.
+        # All other roles are pinned to their own organization.
+        if current_user.role != Role.SUPERADMIN:
+            data["organization_id"] = current_user.organization_id
         data["member_id"] = current_user.id
         report = await service.create_report(**data)
         return ExpenseReportResponse.model_validate(report)
@@ -76,10 +84,11 @@ async def create_report(
 async def get_report(
     report_id: UUID,
     scope_organization_id: uuid.UUID | None = Depends(get_scope_organization_id),
+    scope_member_id: uuid.UUID | None = Depends(get_scope_member_id),
     service: ExpenseReportService = Depends(get_expense_report_service),
 ) -> ExpenseReportResponse:
     try:
-        report = await service.get_report(report_id, scope_organization_id)
+        report = await service.get_report(report_id, scope_organization_id, scope_member_id)
         if report is None:
             raise ValueError("Expense report not found")
         return ExpenseReportResponse.model_validate(report)
@@ -98,6 +107,7 @@ async def update_report(
     report_id: UUID,
     payload: ExpenseReportUpdate,
     scope_organization_id: uuid.UUID | None = Depends(get_scope_organization_id),
+    scope_member_id: uuid.UUID | None = Depends(get_scope_member_id),
     service: ExpenseReportService = Depends(get_expense_report_service),
 ) -> ExpenseReportResponse:
     try:
@@ -107,6 +117,7 @@ async def update_report(
         report = await service.update_report(
             report_id,
             scope_organization_id,
+            scope_member_id,
             **data,
         )
         return ExpenseReportResponse.model_validate(report)
@@ -124,10 +135,11 @@ async def update_report(
 async def delete_report(
     report_id: UUID,
     scope_organization_id: uuid.UUID | None = Depends(get_scope_organization_id),
+    scope_member_id: uuid.UUID | None = Depends(get_scope_member_id),
     service: ExpenseReportService = Depends(get_expense_report_service),
 ) -> MessageResponse:
     try:
-        await service.delete_report(report_id, scope_organization_id)
+        await service.delete_report(report_id, scope_organization_id, scope_member_id)
         return MessageResponse(message="Expense report deleted successfully")
     except Exception as exc:
         return translate_service_exception(exc)
@@ -143,10 +155,11 @@ async def delete_report(
 async def submit_report(
     report_id: UUID,
     scope_organization_id: uuid.UUID | None = Depends(get_scope_organization_id),
+    scope_member_id: uuid.UUID | None = Depends(get_scope_member_id),
     service: ExpenseReportService = Depends(get_expense_report_service),
 ) -> ExpenseReportResponse:
     try:
-        report = await service.submit_report(report_id, scope_organization_id)
+        report = await service.submit_report(report_id, scope_organization_id, scope_member_id)
         return ExpenseReportResponse.model_validate(report)
     except Exception as exc:
         return translate_service_exception(exc)

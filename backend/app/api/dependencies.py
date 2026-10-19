@@ -4,6 +4,7 @@ from typing import NoReturn
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -190,6 +191,15 @@ def get_scope_member_id(
 
 def translate_service_exception(exc: Exception) -> NoReturn:
     """Translate service-layer failures into HTTP exceptions."""
+    # Response validation failures are server bugs, not bad client input.
+    # Returning their details can leak ORM/driver internals and misreport a
+    # committed write as a client-side 400.
+    if isinstance(exc, ValidationError):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="The server could not serialize the response.",
+        ) from exc
+
     if isinstance(exc, StorageOperationError):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

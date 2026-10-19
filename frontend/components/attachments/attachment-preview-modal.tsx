@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Download, Trash2, X, FileText, Image as ImageIcon, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/toast";
 
 interface AttachmentPreviewModalProps {
   isOpen: boolean;
@@ -11,11 +10,14 @@ interface AttachmentPreviewModalProps {
   attachment: {
     id: string;
     file_name: string;
-    file_path?: string;
+    preview_url?: string;
     mime_type?: string;
     file_size_bytes?: number;
   } | null;
   onDelete?: (id: string) => void;
+  onDownload?: () => void;
+  isPreviewLoading?: boolean;
+  previewError?: string;
 }
 
 export function AttachmentPreviewModal({
@@ -23,9 +25,10 @@ export function AttachmentPreviewModal({
   onClose,
   attachment,
   onDelete,
+  onDownload,
+  isPreviewLoading = false,
+  previewError,
 }: AttachmentPreviewModalProps) {
-  const { addToast } = useToast();
-
   if (!isOpen || !attachment) return null;
 
   const isImage =
@@ -37,11 +40,7 @@ export function AttachmentPreviewModal({
     /\.pdf$/i.test(attachment.file_name);
 
   const handleDownload = () => {
-    addToast({
-      title: "Downloading File",
-      description: `Downloading ${attachment.file_name}...`,
-      type: "info",
-    });
+    onDownload?.();
   };
 
   const handleDelete = () => {
@@ -94,11 +93,15 @@ export function AttachmentPreviewModal({
 
         {/* Content Viewer Body */}
         <div className="flex-1 overflow-auto p-6 bg-slate-900 flex items-center justify-center min-h-[350px]">
-          {isImage ? (
+          {isPreviewLoading ? (
+            <p className="text-sm text-slate-300">Preparing secure preview…</p>
+          ) : previewError ? (
+            <p role="alert" className="text-sm text-rose-300">{previewError}</p>
+          ) : isImage && attachment.preview_url ? (
             /* Image Preview */
             <div className="relative max-h-[60vh] overflow-hidden rounded-lg shadow-lg border border-slate-800">
               <img
-                src={attachment.file_path || "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80"}
+                src={attachment.preview_url}
                 alt={attachment.file_name}
                 className="max-h-[60vh] object-contain"
               />

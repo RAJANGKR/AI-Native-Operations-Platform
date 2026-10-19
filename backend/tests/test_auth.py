@@ -1,7 +1,12 @@
 import uuid
-import pytest
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
+import jwt
+import pytest
+from httpx import ASGITransport, AsyncClient
+
+from app.api.dependencies import get_auth_service, get_member_service
 from app.core.security import (
     create_access_token,
     decode_access_token,
@@ -12,6 +17,7 @@ from app.enums.role import Role
 from app.main import app
 from app.models.member import Member
 from app.services.auth_service import AuthService
+from app.services.member_service import MemberService
 
 
 def test_password_hashing_and_verification():
@@ -104,6 +110,114 @@ async def test_auth_service_authenticate_wrong_password():
 
 
 @pytest.mark.asyncio
+async def test_auth_service_rejects_pending_member_before_login():
+    """Pending registrations must not authenticate before admin approval."""
+    service = AuthService(AsyncMock())
+    mock_user = Member(
+        id=uuid.uuid4(),
+        organization_id=uuid.uuid4(),
+        email="pending@example.com",
+        full_name="Pending User",
+        hashed_password=hash_password("CorrectPassword123!"),
+        role=Role.MEMBER,
+        approval_status="PENDING",
+        is_active=True,
+    )
+    service.member_repository.get_user_by_email = AsyncMock(return_value=mock_user)
+
+    with pytest.raises(ValueError, match="pending Treasurer approval"):
+        await service.authenticate_user("pending@example.com", "CorrectPassword123!")
+
+
+@pytest.mark.asyncio
+async def test_member_approval_sets_approved_and_active():
+    """The existing approval path promotes only the selected member."""
+    service = MemberService(AsyncMock())
+    member_id = uuid.uuid4()
+    organization_id = uuid.uuid4()
+    mock_user = Member(
+        id=member_id,
+        organization_id=organization_id,
+        email="pending@example.com",
+        full_name="Pending User",
+        role=Role.MEMBER,
+        approval_status="PENDING",
+        is_active=False,
+    )
+    service.member_repository.get_by_id = AsyncMock(return_value=mock_user)
+    service.member_repository.update = AsyncMock(
+        side_effect=lambda member, **updates: member
+    )
+
+    await service.approve_member(member_id, organization_id)
+
+    service.member_repository.update.assert_awaited_once_with(
+        mock_user,
+        approval_status="APPROVED",
+        is_active=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_admin_can_recover_pending_member_but_member_cannot():
+    """Approval route stays admin-only and recovers only the chosen member."""
+    organization_id = uuid.uuid4()
+    pending_id = uuid.uuid4()
+    pending_member = Member(
+        id=pending_id,
+        organization_id=organization_id,
+        email="pending@example.com",
+        full_name="Pending User",
+        role=Role.MEMBER,
+        approval_status="APPROVED",
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    service = AsyncMock()
+    service.approve_member.return_value = pending_member
+    app.dependency_overrides[get_member_service] = lambda: service
+
+    async def request_as(role):
+        caller = Member(
+            id=uuid.uuid4(),
+            organization_id=organization_id,
+            email="caller@example.com",
+            full_name="Caller",
+            role=role,
+            approval_status="PENDING",
+            is_active=True,
+        )
+        auth_service = AuthService(AsyncMock())
+        auth_service.member_repository.get_by_id = AsyncMock(return_value=caller)
+        app.dependency_overrides[get_auth_service] = lambda: auth_service
+        token = create_access_token(
+            {"sub": caller.email, "user_id": str(caller.id), "role": role.value}
+        )
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            return await client.post(
+                f"/api/v1/members/{pending_id}/approve",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+    try:
+        admin_response = await request_as(Role.ADMIN)
+        assert admin_response.status_code == 200
+        assert admin_response.json()["approval_status"] == "APPROVED"
+        service.approve_member.assert_awaited_once_with(pending_id, organization_id)
+
+        service.approve_member.reset_mock()
+        member_response = await request_as(Role.MEMBER)
+        assert member_response.status_code == 403
+        service.approve_member.assert_not_awaited()
+    finally:
+        app.dependency_overrides.pop(get_auth_service, None)
+        app.dependency_overrides.pop(get_member_service, None)
+
+
+@pytest.mark.asyncio
 async def test_auth_service_login_returns_token_and_user():
     """Verify login() generates valid token and CurrentUserResponse structure."""
     mock_session = AsyncMock()
@@ -185,3 +299,47 @@ async def test_authenticate_user_unknown_email_does_not_create_account():
 
     mock_session.add.assert_not_called()
     mock_session.commit.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_authenticate_user_rejects_account_without_password_hash():
+    service = AuthService(AsyncMock())
+    user = Member(
+        id=uuid.uuid4(),
+        organization_id=uuid.uuid4(),
+        email="passwordless@example.com",
+        full_name="Passwordless User",
+        hashed_password=None,
+        role=Role.MEMBER,
+        is_active=True,
+    )
+    service.member_repository.get_user_by_email = AsyncMock(return_value=user)
+
+    with pytest.raises(ValueError, match="Invalid email or password"):
+        await service.authenticate_user("passwordless@example.com", "arbitrary-password")
+
+    service.session.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_get_current_user_rejects_non_access_token_type():
+    service = AuthService(AsyncMock())
+    service.member_repository.get_by_id = AsyncMock()
+    from app.core.config import settings
+
+    token = jwt.encode(
+        {
+            "sub": "admin@example.com",
+            "user_id": str(uuid.uuid4()),
+            "iat": int(datetime.now(timezone.utc).timestamp()),
+            "exp": int(datetime.now(timezone.utc).timestamp()) + 60,
+            "type": "refresh",
+        },
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
+
+    with pytest.raises(ValueError, match="Invalid authentication token"):
+        await service.get_current_user(token)
+
+    service.member_repository.get_by_id.assert_not_awaited()

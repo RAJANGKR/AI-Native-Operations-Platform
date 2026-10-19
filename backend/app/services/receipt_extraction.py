@@ -10,7 +10,7 @@ from decimal import Decimal, InvalidOperation
 _DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
 _AMOUNT = re.compile(r"(?<![\w])(?:₹|INR\s*|Rs\.?\s*|रु\.?\s*)?([0-9][0-9,]*(?:\.[0-9]{1,2})?)(?!\w)", re.IGNORECASE)
 _TOTAL_LABELS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("grand_total", re.compile(r"\b(?:grand\s+total|total\s+payable|amount\s+payable|net\s+amount|balance\s+due)\b|देय\s+राशि", re.IGNORECASE)),
+    ("grand_total", re.compile(r"\b(?:grand\s+total|g\.?\s*total|total\s+payable|amount\s+payable|net\s+amount|balance\s+due)\b|देय\s+राशि", re.IGNORECASE)),
     ("total", re.compile(r"\btotal\b|कुल(?:\s+राशि)?", re.IGNORECASE)),
 )
 _EXCLUDED_AMOUNT_CONTEXT = re.compile(
@@ -20,6 +20,7 @@ _EXCLUDED_AMOUNT_CONTEXT = re.compile(
 _DATE_PATTERNS = (
     re.compile(r"\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b"),
     re.compile(r"\b(\d{1,2})[-/.](\d{1,2})[-/.](20\d{2})\b"),
+    re.compile(r"\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{2})\b"),
 )
 
 
@@ -57,22 +58,32 @@ def _parse_amount(value: str) -> Decimal | None:
     return amount if amount > 0 else None
 
 
-def _extract_date(text: str) -> date | None:
+def _extract_dates(text: str) -> list[date]:
     normalized = text.translate(_DEVANAGARI_DIGITS)
+    candidates: list[date] = []
     for index, pattern in enumerate(_DATE_PATTERNS):
-        match = pattern.search(normalized)
-        if not match:
-            continue
-        parts = [int(item) for item in match.groups()]
-        year, month, day = parts if index == 0 else (parts[2], parts[1], parts[0])
-        try:
-            return date(year, month, day)
-        except ValueError:
-            return None
-    return None
+        for match in pattern.finditer(normalized):
+            parts = [int(item) for item in match.groups()]
+            if index == 0:
+                year, month, day = parts
+            else:
+                day, month, year = parts
+                if index == 2:
+                    year += 2000 if year < 50 else 1900
+            try:
+                candidate = date(year, month, day)
+            except ValueError:
+                continue
+            if candidate not in candidates:
+                candidates.append(candidate)
+    return candidates
 
 
-def extract_receipt_fields(text: str) -> CandidateFields:
+def extract_receipt_fields(
+    text: str,
+    *,
+    amount_context_lines: list[str] | None = None,
+) -> CandidateFields:
     """Extract only labeled totals; leave unlabelled or conflicting amounts unresolved."""
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     merchant = next(
@@ -80,10 +91,13 @@ def extract_receipt_fields(text: str) -> CandidateFields:
         None,
     )
     normalized_lines = [line.translate(_DEVANAGARI_DIGITS) for line in lines]
-    date_candidate = _extract_date("\n".join(normalized_lines))
+    date_candidates = _extract_dates("\n".join(normalized_lines))
+    date_candidate = date_candidates[0] if date_candidates else None
+    labeled_date_count = sum(len(re.findall(r"\bdate\b", line, re.IGNORECASE)) for line in normalized_lines)
 
     selected: list[tuple[str, Decimal, str]] = []
-    for line in normalized_lines:
+    for line in amount_context_lines if amount_context_lines is not None else normalized_lines:
+        line = line.translate(_DEVANAGARI_DIGITS)
         if _EXCLUDED_AMOUNT_CONTEXT.search(line):
             continue
         label = next((name for name, pattern in _TOTAL_LABELS if pattern.search(line)), None)
@@ -117,6 +131,8 @@ def extract_receipt_fields(text: str) -> CandidateFields:
 
     if date_candidate is None:
         warnings.append("No valid transaction date was found; enter it manually.")
+    elif len(date_candidates) > 1 or labeled_date_count > len(date_candidates):
+        warnings.append("Several receipt dates were found; verify that the selected date is the transaction date.")
     if merchant is None:
         warnings.append("No merchant name was found; enter it manually.")
     return CandidateFields(merchant, date_candidate, amount, currency, confidence, tuple(warnings))

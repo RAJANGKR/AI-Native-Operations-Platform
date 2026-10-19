@@ -178,6 +178,25 @@ class ReceiptOCRService:
         merged.extend(line for line in remaining_dev if re.search(r"[\u0900-\u097F]", line.text))
         return tuple(sorted(merged, key=lambda line: (line.top, line.left)))
 
+    @staticmethod
+    def _group_lines_by_row(lines: tuple[OCRLine, ...], image_height: int) -> list[str]:
+        """Join nearby OCR boxes so labels and values in adjacent columns stay together."""
+        tolerance = max(10.0, image_height * 0.015)
+        rows: list[list[OCRLine]] = []
+        for line in sorted(lines, key=lambda item: (item.top, item.left)):
+            row = next(
+                (items for items in rows if abs(line.top - sum(item.top for item in items) / len(items)) <= tolerance),
+                None,
+            )
+            if row is None:
+                rows.append([line])
+            else:
+                row.append(line)
+        return [
+            " ".join(item.text for item in sorted(row, key=lambda item: item.left))
+            for row in rows
+        ]
+
     def process(self, image_bytes: bytes, filename: str, content_type: str | None) -> OCRResult:
         image = self.validate_image(image_bytes, filename, content_type)
         try:
@@ -194,7 +213,11 @@ class ReceiptOCRService:
             raise LocalOCRUnavailable("Local OCR could not process this image. Try a clearer image.") from exc
 
         recognized_text = "\n".join(line.text for line in lines)
-        candidates = extract_receipt_fields(recognized_text)
+        amount_context_lines = self._group_lines_by_row(lines, image.height)
+        candidates = extract_receipt_fields(
+            recognized_text,
+            amount_context_lines=amount_context_lines,
+        )
         warnings = list(candidates.warnings)
         if not recognized_text:
             warnings.insert(0, "No readable text was recognized. You can enter the values manually.")

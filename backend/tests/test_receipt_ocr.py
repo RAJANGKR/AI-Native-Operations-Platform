@@ -12,6 +12,7 @@ from app.main import app
 from app.services.receipt_extraction import extract_receipt_fields
 from app.services.receipt_ocr_service import (
     LocalOCRUnavailable,
+    OCRLine,
     ReceiptImageError,
     ReceiptOCRService,
 )
@@ -61,6 +62,27 @@ def test_financial_extraction_supports_comma_decimal_and_indian_grouping():
     rupee_prefix = extract_receipt_fields("Total Rs. 50.00")
     assert rupee_prefix.amount == Decimal("50.00")
     assert rupee_prefix.currency == "INR"
+
+
+def test_financial_extraction_supports_two_digit_receipt_years():
+    fields = extract_receipt_fields("Date: 10/10/26")
+    assert fields.expense_date == date(2026, 10, 10)
+
+    multiple_dates = extract_receipt_fields("Invoice Date: unreadable\nOrder Date: 10/10/26")
+    assert multiple_dates.expense_date == date(2026, 10, 10)
+    assert any("Several receipt dates" in warning for warning in multiple_dates.warnings)
+
+
+def test_total_amount_in_adjacent_ocr_column_is_grouped_by_visual_row():
+    service = ReceiptOCRService()
+    lines = (
+        OCRLine("G.TOTAL", 99, top=100, left=10),
+        OCRLine("4050", 98, top=108, left=100),
+    )
+    row_text = service._group_lines_by_row(lines, image_height=120)
+    fields = extract_receipt_fields("G.TOTAL\n4050", amount_context_lines=row_text)
+    assert fields.amount == Decimal("4050")
+    assert fields.amount_confidence == "candidate"
 
 
 @pytest.mark.parametrize("text", ["SHOP\nSubtotal 250\nTax 20", "SHOP\nPaid 260", "SHOP\nTotal ₹0"])

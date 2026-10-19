@@ -64,9 +64,8 @@ export default function ReportDetailPage({ params }: ReportDetailPageProps) {
 
       {/* 4. Attachments */}
       <AttachmentGrid
-        attachments={report.attachments}
         reportId={report.id}
-        expenseId={report.expenses[0]?.id || "00000000-0000-0000-0000-000000000005"}
+        expenseIds={report.expenses.map((expense) => expense.id)}
       />
 
       {/* 5 & 6. Totals Card & Activity Timeline Split */}

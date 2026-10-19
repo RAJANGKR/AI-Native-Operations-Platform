@@ -10,6 +10,7 @@ from PIL import Image, UnidentifiedImageError
 
 from app.core.storage import StorageOperationError, storage_client
 from app.enums.attachment import AttachmentType, OCRStatus
+from app.enums.expense_report import ExpenseReportStatus
 from app.models.attachment import Attachment
 from app.repositories.attachment_repository import AttachmentRepository
 from app.repositories.expense_report_repository import ExpenseReportRepository
@@ -60,6 +61,8 @@ class AttachmentService(BaseService):
             raise ValueError("Expense not found")
         if member_id is not None and report.member_id != member_id:
             raise ValueError("Expense not found")
+        if member_id is not None and report.status != ExpenseReportStatus.DRAFT:
+            raise RuntimeError("Members can only attach files to draft expense reports")
 
         original_filename = file.filename or "receipt.pdf"
         _, ext = os.path.splitext(original_filename)
@@ -92,13 +95,22 @@ class AttachmentService(BaseService):
 
         sha256_hash = hashlib.sha256(file_bytes).hexdigest()
 
+        # A timeout can hide a successful upload response from the client.
+        # Return its existing row on a sequential retry instead of creating a
+        # second attachment for the same receipt and expense.
+        existing_attachment = await self.attachment_repository.get_by_expense_and_sha256(
+            expense_id, sha256_hash
+        )
+        if existing_attachment is not None:
+            return existing_attachment
+
         report_id = expense.report_id
         evt_id = report.event_id or "no-event"
 
         attachment_uuid = uuid.uuid4()
         storage_path = (
             f"{report.organization_id}/{report.chapter_id}/{evt_id}/"
-            f"{report_id}/{expense_id}/{attachment_uuid}{ext}"
+            f"{report_id}/{expense_id}/{sha256_hash}{ext}"
         )
 
         # Upload to Supabase Storage
@@ -177,6 +189,14 @@ class AttachmentService(BaseService):
         attachment = await self.get_attachment(attachment_id, organization_id, member_id)
         if attachment is None:
             raise ValueError("Attachment not found")
+
+        if member_id is not None:
+            expense = await self.expense_repository.get_by_id(attachment.expense_id)
+            report = await self.expense_report_repository.get_by_id(expense.report_id) if expense else None
+            if report is None or report.member_id != member_id:
+                raise ValueError("Attachment not found")
+            if report.status != ExpenseReportStatus.DRAFT:
+                raise RuntimeError("Members can only delete files from draft expense reports")
 
         # Delete from Supabase Storage first
         try:

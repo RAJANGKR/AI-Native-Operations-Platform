@@ -43,6 +43,10 @@ coverage/
 # ==========================
 .env.local
 .env.production
+
+# Generated frontend output and TypeScript build cache
+frontend/.next/
+*.tsbuildinfo
 /backend/.env.staging.local
 
 # ==========================
